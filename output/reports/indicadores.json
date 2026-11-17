@@ -50,6 +50,8 @@
     "sem_nome": 72,
     "sem_endereco": 132,
     "duplicatas_removidas": 1,
+    "enderecos_aproximados": 128,
+    "sem_endereco_final": 3,
     "registros_finais": 172
   }
 }

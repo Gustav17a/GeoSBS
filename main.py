@@ -51,14 +51,16 @@ def run(refresh_osm: bool, refresh_ibge: bool, open_browser: bool,
         df = pd.concat([df, manual], ignore_index=True)
     pois, rejected, quality = validate(df, municipio)
     quality = {**collection, **quality}
-    if reverse_geocode:
-        pois = fill_missing_addresses(pois)
-        filled = pois["endereco"].notna() & pois["flags"].str.contains("sem_endereco")
-        pois.loc[filled, "flags"] = pois.loc[filled, "flags"].str.replace(
-            "sem_endereco", "endereco_aproximado")
-        quality["enderecos_geocodificados"] = int(filled.sum())
+    # Endereços aproximados: com --reverse-geocode consulta o Nominatim; sem a opção,
+    # reaproveita apenas o cache (nenhuma requisição), para não perder o que já foi obtido.
+    pois = fill_missing_addresses(pois, online=reverse_geocode)
+    filled = pois["endereco"].notna() & pois["flags"].str.contains("sem_endereco")
+    pois.loc[filled, "flags"] = pois.loc[filled, "flags"].str.replace("sem_endereco", "endereco_aproximado")
     pois, duplicates = remove_duplicates(pois)
     quality["duplicatas_removidas"] = len(duplicates)
+    # Contado após a deduplicação, para bater com os registros do mapa.
+    quality["enderecos_aproximados"] = int(pois["flags"].str.contains("endereco_aproximado").sum())
+    quality["sem_endereco_final"] = int(pois["endereco"].isna().sum())
     quality["registros_finais"] = len(pois)
 
     log.info("4/6 Atribuindo bairros por junção espacial")

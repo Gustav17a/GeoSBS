@@ -70,10 +70,13 @@ O mapa precisa de internet para carregar o mapa-base, o satélite e o relevo.
 ```powershell
 python main.py --refresh          # nova coleta no OpenStreetMap
 python main.py --refresh-ibge     # baixar novamente as malhas do IBGE
-python main.py --reverse-geocode  # preencher endereços ausentes via Nominatim (~1 s por registro)
+python main.py --reverse-geocode  # consulta o Nominatim para endereços ausentes (~1 s por registro novo);
+                                  # execuções seguintes reaproveitam o cache sem novas consultas
 python main.py --no-browser       # não abrir o navegador
 python main.py -v                 # log detalhado
-python -m pytest                  # testes automatizados
+python -m pytest                  # testes automatizados (rápidos)
+python tests/ui/run_ui_tests.py   # teste de interface num navegador real (~2 min;
+                                  # requer pip install -r requirements-dev.txt e Edge ou Chrome)
 ```
 
 ### Problemas comuns
