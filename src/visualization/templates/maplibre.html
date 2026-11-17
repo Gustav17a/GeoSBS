@@ -292,7 +292,9 @@ const iconSvg = (cat, size, stroke = "#fff") =>
 const state = {
   active: new Set(GEO.categories.map(c => c.id)),
   base: "mapa", analysis: "none", terrain: false, exag: 1.5,
-  bairros: true, mun: true, infra: true, hill: true, esri: !!ESRI_KEY,
+  // A chave da Esri só é aceita nos domínios autorizados; aberto do disco (file://) não há
+  // domínio, então o mapa usa o Sentinel-2.
+  bairros: true, mun: true, infra: true, hill: true, esri: !!ESRI_KEY && location.protocol !== "file:",
 };
 
 /* ---------- mapa ---------- */
@@ -337,6 +339,16 @@ function fitPadding() {
 /* Falhas isoladas de tiles são normais (o mapa tenta de novo); só avisamos se o ESTILO
    do mapa-base não carregar — erros de estilo não têm sourceId. */
 let styleError = null;
+/* Se a Esri recusar os tiles (chave vencida ou domínio não autorizado), volta ao Sentinel-2. */
+const satHealth = { ok: false, errors: 0 };
+map.on("sourcedata", (e) => { if (e.sourceId === "sat" && e.tile && state.esri) satHealth.ok = true; });
+map.on("error", (e) => {
+  if (e.sourceId !== "sat" || !state.esri || satHealth.ok) return;
+  if (++satHealth.errors >= 4) {
+    state.esri = false; $("#optEsri").checked = false; applyBase();
+    toast("As imagens de alta resolução (Esri) não puderam ser carregadas aqui; exibindo o Sentinel-2 (10 m).", 9000);
+  }
+});
 map.on("error", (e) => {
   console.warn("MapLibre:", e.sourceId || "estilo", e.error && e.error.message);
   if (!e.sourceId && !window.geoReady) styleError = e;
@@ -534,6 +546,8 @@ function applyBase() {
   vis("relief", b === "relevo");
   trySet("hillshade", "hillshade-exaggeration", b === "relevo" ? 0.7 : 0.35);
   if (b === "relevo") for (const id of G.fills) if (/landcover|park/.test(id)) vis(id, false);
+  // No híbrido, calçadas e trilhas (tracejadas) poluem a imagem: ficam ocultas.
+  if (b === "hibrido") for (const id of G.roads) if (/path_pedestrian/.test(id)) vis(id, false);
   if (b === "hibrido") for (const id of G.water) if (map.getLayer(id) && map.getLayer(id).type === "fill") vis(id, false);
   // Enquanto tiles de satélite carregam, o fundo fica verde-escuro (e não branco).
   if (BG_COLOR === undefined) BG_COLOR = map.getPaintProperty("background", "background-color");
@@ -741,6 +755,7 @@ function bindUI() {
   $("#optInfra").onchange = (e) => { state.infra = e.target.checked; applyBase(); };
   $("#optHill").onchange = (e) => { state.hill = e.target.checked; applyBase(); };
   if (!ESRI_KEY) { $("#optEsri").disabled = true; $("#esriNote").textContent = "Indisponível: chave da ArcGIS Location Platform não configurada (ver README)."; }
+  else if (location.protocol === "file:") { $("#optEsri").disabled = true; $("#esriNote").textContent = "Indisponível ao abrir o arquivo direto do disco: use o site publicado ou um servidor local."; }
   $("#optEsri").checked = state.esri;
   $("#optEsri").onchange = (e) => { state.esri = e.target.checked;
     if (state.base === "mapa" || state.base === "relevo") { state.base = "satelite"; }
