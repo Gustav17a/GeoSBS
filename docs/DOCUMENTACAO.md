@@ -101,12 +101,12 @@ agregados por áreas dependem do recorte adotado, o Problema da Unidade de Área
 | Etapa | Procedimento |
 |---|---|
 | Aquisição | Download da Malha Municipal 2022 e da Malha de Bairros do Censo 2022 (IBGE, *shapefile*); consulta única à Overpass API do OSM pelo retângulo envolvente do município, salva com data e hora em `data/raw/`. |
-| Classificação | Regras de tags OSM → 8 categorias (`config/categories.json`); elementos que não casam são descartados. |
+| Classificação | Regras de tags OSM → 8 categorias (`config/categories.json`), com condições opcionais por regra (ex.: centro comunitário só é serviço público com operador público); elementos que não casam são descartados e contados no relatório de qualidade. |
 | Validação | Coordenadas ausentes ou fora da faixa → rejeitadas; pontos fora do polígono municipal (tolerância de 50 m) → rejeitados; nome/endereço ausentes → mantidos com sinalização. |
 | Deduplicação | Mesma categoria, distância ≤ 75 m e similaridade de nome ≥ 0,85; mantém-se o registro mais completo. |
 | Análise espacial | Junção ponto-em-polígono para atribuir bairro; área em km² na projeção UTM 22S; densidade = registros/km²; proximidade = distância em linha reta do ponto representativo do bairro à unidade mais próxima; índice de Clark-Evans por categoria. |
 | Visualização | Folium (Leaflet) com LayerControl, MarkerCluster, HeatMap, coropléticos e painel HTML/CSS/JS. |
-| Verificação | 24 testes automatizados (pytest); conferência da área calculada com a oficial; inspeção visual do mapa. |
+| Verificação | 31 testes automatizados (pytest); conferência da área calculada com a oficial; inspeção visual do mapa. |
 
 Paradas de ônibus são exibidas no mapa, mas excluídas das contagens de estabelecimentos e do
 mapa de calor, para não distorcer a comparação entre bairros.
@@ -154,14 +154,15 @@ respeitar as políticas de uso das APIs públicas.
 | Etapa | Registros |
 |---|---|
 | Elementos recebidos da Overpass API (retângulo envolvente) | 235 |
-| Rejeitados por estarem fora do município | 57 |
+| Descartados pelas regras de classificação (jardins sem nome) | 17 |
+| Rejeitados por estarem fora do município | 45 |
 | Rejeitados por coordenada inválida | 0 |
 | Duplicatas removidas | 1 |
-| **Registros finais no mapa** | **177** |
-| ↳ sem nome no OSM (mantidos e sinalizados) | 77 |
-| ↳ sem endereço no OSM (mantidos e sinalizados) | 137 |
+| **Registros finais no mapa** | **172** |
+| ↳ sem nome no OSM (mantidos e sinalizados) | 72 |
+| ↳ sem endereço no OSM (mantidos e sinalizados) | 132 |
 
-Quase todos os 57 rejeitados ficam nos municípios vizinhos de Campo Alegre e Corupá, que
+Quase todos os 45 rejeitados ficam nos municípios vizinhos de Campo Alegre e Corupá, que
 caem dentro do retângulo da consulta mas fora do polígono do IBGE. A única duplicata removida
 foi o Terminal Urbano do Centenário, mapeado como ponto e como área a 5,9 m de distância.
 
@@ -173,29 +174,28 @@ Família (54 m) e Univille (74 m). As diferenças maiores ocorrem em objetos que
 como áreas (o sistema usa o centro do polígono, o Google usa um ponto de entrada).
 
 **Indicadores gerais:**
-- **131 estabelecimentos e equipamentos**, mais 46 paradas de ônibus que aparecem no mapa mas
+- **126 estabelecimentos e equipamentos**, mais 46 paradas de ônibus que aparecem no mapa mas
   não entram nas contagens.
-- Por categoria: Lazer e espaços públicos 39 · Educação 26 · Serviços públicos 22 · Saúde 14 ·
-  Outros pontos de interesse 14 · Farmácias 7 · Transporte 5 · Segurança pública 4.
-  **Categoria com mais registros: Lazer e espaços públicos** (inclui 9 *playgrounds* e 5
-  jardins sem nome).
-- 16 dos 20 bairros têm ao menos um registro; **12 registros** ficam fora dos bairros oficiais
+- Por categoria: Lazer e espaços públicos 34 · Educação 26 · Outros pontos de interesse 19 ·
+  Serviços públicos 17 · Saúde 14 · Farmácias 7 · Transporte 5 · Segurança pública 4.
+  **Categoria com mais registros: Lazer e espaços públicos** (inclui 9 *playgrounds* sem nome).
+- 16 dos 20 bairros têm ao menos um registro; **11 registros** ficam fora dos bairros oficiais
   (área rural ou lacunas da malha — por exemplo, o campus do Instituto Federal Catarinense).
 
 **Quantidade e densidade por bairro** (`output/reports/por_bairro.csv`):
 
 | | Bairro | Valor |
 |---|---|---|
-| Maior quantidade | Centro | 46 registros (38,7% dos que estão em bairros) |
-| 2ª maior quantidade | Oxford | 16 registros |
-| Maior densidade | Centro | 15,45 por km² |
-| 2ª maior densidade | Oxford | 6,04 por km² |
+| Maior quantidade | Centro | 44 registros (38,3% dos que estão em bairros) |
+| 2ª maior quantidade | Oxford | 15 registros |
+| Maior densidade | Centro | 14,78 por km² |
+| 2ª maior densidade | Oxford | 5,66 por km² |
 | Menor quantidade e densidade | Industrial Sudoeste, Dona Francisca, Alpino e Rio Vermelho Povoado (empate) | 0 registros |
 | Menor densidade entre bairros com registros | Bela Aliança | 0,22 por km² (1 registro) |
 
 Serra Alta é um bom exemplo da diferença entre as medidas: é o **3º em quantidade** (11
 registros), mas, por ser o maior bairro (12,06 km²), tem densidade de apenas **0,91 por km²**,
-abaixo de bairros com menos registros, como Centenário (1,88), Boehmerwald (1,72) e Colonial (1,61).
+abaixo de bairros com menos registros, como Centenário (1,88), Colonial (1,61) e Boehmerwald (1,37).
 
 **Proximidade** — distância em linha reta (m) do ponto representativo de cada bairro até a
 unidade mais próxima (`output/reports/proximidade.csv`):
@@ -233,11 +233,11 @@ bairros; por isso *n* pode ser menor que o total da categoria):
 
 | Categoria | n | Dist. média observada (m) | Dist. esperada se aleatório (m) | R | Leitura |
 |---|---:|---:|---:|---:|---|
-| Outros pontos de interesse | 8 | 480,2 | 1.601,9 | 0,30 | agrupado |
+| Serviços públicos | 16 | 425,6 | 1.132,7 | 0,38 | agrupado |
 | Farmácias | 7 | 934,2 | 1.712,5 | 0,55 | agrupado |
-| Serviços públicos | 18 | 654,5 | 1.067,9 | 0,61 | agrupado |
+| Outros pontos de interesse | 10 | 881,2 | 1.432,7 | 0,62 | agrupado |
 | Saúde | 14 | 786,8 | 1.210,9 | 0,65 | agrupado |
-| Lazer e espaços públicos | 38 | 530,0 | 735,0 | 0,72 | agrupado |
+| Lazer e espaços públicos | 34 | 574,3 | 777,0 | 0,74 | agrupado |
 | Educação | 25 | 681,0 | 906,2 | 0,75 | agrupado |
 | Segurança pública | 4 | 1.841,5 | 2.265,4 | 0,81 | agrupado |
 | Transporte | 5 | 1.946,6 | 2.026,2 | 0,96 | próximo do aleatório |
@@ -245,7 +245,9 @@ bairros; por isso *n* pode ser menor que o total da categoria):
 Interpretação: em sete das oito categorias R < 1, o que indica tendência de agrupamento,
 coerente com a concentração de registros no Centro. O resultado deve ser lido com cautela:
 (1) não foi feito teste de significância estatística; (2) categorias com poucos pontos
-(Segurança, n = 4; Transporte, n = 5; Farmácias, n = 7) produzem valores instáveis;
+(Segurança, n = 4; Transporte, n = 5; Farmácias, n = 7) produzem valores instáveis, e o
+resultado é sensível às regras de classificação — ao tirar 5 centros comunitários de Serviços
+públicos, o R dessa categoria passou de 0,61 para 0,38;
 (3) não há correção de efeito de borda; e (4) o índice mede o padrão **dos registros do OSM**,
 que também reflete onde os mapeadores atuaram mais.
 
@@ -265,7 +267,7 @@ do limite do bairro.
   horários ou capacidade de atendimento.
 - **MAUP e efeito de borda:** resultados dependem do recorte por bairros; o índice de
   Clark-Evans não tem correção de borda nem teste de significância.
-- **Atributos incompletos no OSM:** 77 dos 177 registros (43%) não têm nome e 137 (77%) não têm
+- **Atributos incompletos no OSM:** 72 dos 172 registros (42%) não têm nome e 132 (77%) não têm
   endereço. Eles são mantidos, porque a localização é válida, mas sinalizados.
 - **Precisão do limite municipal:** a Malha Municipal do IBGE é compatível com a escala
   1:250.000, então o traçado do limite pode ter erros da ordem de 100 m. Dois registros foram
@@ -273,9 +275,14 @@ do limite do bairro.
   pertencer ao município; a tolerância de 50 m foi mantida para não aceitar pontos de vizinhos.
 - **Lacunas na malha de bairros:** alguns equipamentos urbanos ficam fora dos polígonos de
   bairro do IBGE (ex.: campus do Instituto Federal Catarinense) e entram em "fora dos bairros".
-- **Classificação por tags:** a categoria depende da tag escolhida pelo mapeador. Por exemplo,
-  `amenity=community_centre` (classificado como Serviço público) inclui salões de eventos e
-  sociedades privadas; `amenity=dentist` (Saúde) inclui consultórios particulares.
+- **Classificação por tags:** a categoria depende da tag escolhida pelo mapeador. Duas regras
+  foram refinadas após inspeção dos dados reais: `amenity=community_centre` só conta como
+  Serviço público quando o OSM indica operador público (`operator:type=public`; caso do Centro
+  Comunitário Santinor da Silva) — os demais (casas de eventos, sociedades, associações) vão para
+  Outros pontos de interesse; e `leisure=garden` só conta como Lazer quando tem nome, porque os
+  jardins sem nome não tinham nenhuma outra tag e podem ser canteiros. Permanecem limitações:
+  `amenity=dentist` (Saúde) inclui consultórios particulares, e o registro "Compre Mais"
+  (`amenity=marketplace`) não pôde ser confirmado em outra fonte.
 - **Empates:** quatro bairros têm zero registros; o relatório automático cita apenas um deles
   como "menor quantidade" e "menor densidade".
 - **Disponibilidade de APIs:** durante o desenvolvimento, as instâncias públicas do Overpass

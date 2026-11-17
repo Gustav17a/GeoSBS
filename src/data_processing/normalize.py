@@ -54,7 +54,8 @@ def osm_to_dataframe(raw_file: Path) -> pd.DataFrame:
     ).isoformat(timespec="seconds")
 
     rows = []
-    for el in payload.get("elements", []):
+    elements = payload.get("elements", [])
+    for el in elements:
         tags = el.get("tags") or {}
         classified = classify(tags)
         if classified is None:
@@ -78,7 +79,11 @@ def osm_to_dataframe(raw_file: Path) -> pd.DataFrame:
                 "flags": "",
             }
         )
-    return pd.DataFrame(rows, columns=SCHEMA)
+    df = pd.DataFrame(rows, columns=SCHEMA)
+    # Rastreabilidade: quantos elementos da coleta foram descartados pelas regras.
+    df.attrs["elementos_osm"] = len(elements)
+    df.attrs["descartados_pelas_regras"] = len(elements) - len(rows)
+    return df
 
 
 def to_geodataframe(df: pd.DataFrame) -> gpd.GeoDataFrame:

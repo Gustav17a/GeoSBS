@@ -5,19 +5,21 @@ Coleta OSM: 2026-11-17T17:41:17. Todos os números abaixo foram calculados pelo 
 ## Qualidade dos dados
 | verificação | registros |
 |---|---|
-| registros_recebidos | 235 |
+| elementos_osm | 235 |
+| descartados_pelas_regras | 17 |
+| registros_recebidos | 218 |
 | coordenada_invalida | 0 |
-| fora_do_municipio | 57 |
-| sem_nome | 77 |
-| sem_endereco | 137 |
+| fora_do_municipio | 45 |
+| sem_nome | 72 |
+| sem_endereco | 132 |
 | duplicatas_removidas | 1 |
-| registros_finais | 177 |
+| registros_finais | 172 |
 
 ## Indicadores gerais
-- Estabelecimentos e equipamentos: **131** (+ 46 paradas de ônibus exibidas apenas no mapa)
+- Estabelecimentos e equipamentos: **126** (+ 46 paradas de ônibus exibidas apenas no mapa)
 - Categoria com mais registros: **Lazer e espaços públicos**
 - Bairros analisados: 20 (16 com ao menos um registro)
-- Registros fora dos bairros oficiais: 12
+- Registros fora dos bairros oficiais: 11
 
 ### Por categoria
 | Categoria | Registros |
@@ -27,29 +29,29 @@ Coleta OSM: 2026-11-17T17:41:17. Todos os números abaixo foram calculados pelo 
 | Educação | 26 |
 | Segurança pública | 4 |
 | Transporte | 5 |
-| Serviços públicos | 22 |
-| Lazer e espaços públicos | 39 |
-| Outros pontos de interesse | 14 |
+| Serviços públicos | 17 |
+| Lazer e espaços públicos | 34 |
+| Outros pontos de interesse | 19 |
 
 ## Por bairro (quantidade e densidade)
 | Bairro | Área (km²) | Total | Por km² | % do total |
 |---|---|---|---|---|
-| Centro | 2.977 | 46 | 15.45 | 38.7 |
-| Oxford | 2.649 | 16 | 6.04 | 13.4 |
-| Serra Alta | 12.055 | 11 | 0.91 | 9.2 |
-| Colonial | 4.969 | 8 | 1.61 | 6.7 |
-| Centenário | 4.258 | 8 | 1.88 | 6.7 |
-| Boehmerwald | 2.909 | 5 | 1.72 | 4.2 |
-| Brasília | 6.265 | 5 | 0.8 | 4.2 |
-| Mato Preto | 3.087 | 4 | 1.3 | 3.4 |
-| Schramm | 3.3 | 4 | 1.21 | 3.4 |
-| Progresso | 6.131 | 3 | 0.49 | 2.5 |
-| Rio Negro | 3.248 | 3 | 0.92 | 2.5 |
+| Centro | 2.977 | 44 | 14.78 | 38.3 |
+| Oxford | 2.649 | 15 | 5.66 | 13.0 |
+| Serra Alta | 12.055 | 11 | 0.91 | 9.6 |
+| Colonial | 4.969 | 8 | 1.61 | 7.0 |
+| Centenário | 4.258 | 8 | 1.88 | 7.0 |
+| Brasília | 6.265 | 5 | 0.8 | 4.3 |
+| Boehmerwald | 2.909 | 4 | 1.37 | 3.5 |
+| Mato Preto | 3.087 | 4 | 1.3 | 3.5 |
+| Schramm | 3.3 | 4 | 1.21 | 3.5 |
+| Progresso | 6.131 | 3 | 0.49 | 2.6 |
+| Rio Negro | 3.248 | 3 | 0.92 | 2.6 |
 | Cruzeiro | 4.748 | 2 | 0.42 | 1.7 |
-| Lençol | 4.218 | 1 | 0.24 | 0.8 |
-| Vinte e Cinco de Julho | 3.679 | 1 | 0.27 | 0.8 |
-| Rio Vermelho - Estação | 2.957 | 1 | 0.34 | 0.8 |
-| Bela Aliança | 4.556 | 1 | 0.22 | 0.8 |
+| Lençol | 4.218 | 1 | 0.24 | 0.9 |
+| Vinte e Cinco de Julho | 3.679 | 1 | 0.27 | 0.9 |
+| Rio Vermelho - Estação | 2.957 | 1 | 0.34 | 0.9 |
+| Bela Aliança | 4.556 | 1 | 0.22 | 0.9 |
 | Industrial Sudoeste | 1.895 | 0 | 0.0 | 0.0 |
 | Dona Francisca | 4.286 | 0 | 0.0 | 0.0 |
 | Alpino | 2.789 | 0 | 0.0 | 0.0 |
@@ -87,8 +89,8 @@ Coleta OSM: 2026-11-17T17:41:17. Todos os números abaixo foram calculados pelo 
 | Educação | 25 | 681.0 | 906.2 | 0.752 | agrupado |
 | Segurança pública | 4 | 1841.5 | 2265.4 | 0.813 | agrupado |
 | Transporte | 5 | 1946.6 | 2026.2 | 0.961 | próximo do aleatório |
-| Serviços públicos | 18 | 654.5 | 1067.9 | 0.613 | agrupado |
-| Lazer e espaços públicos | 38 | 530.0 | 735.0 | 0.721 | agrupado |
-| Outros pontos de interesse | 8 | 480.2 | 1601.9 | 0.3 | agrupado |
+| Serviços públicos | 16 | 425.6 | 1132.7 | 0.376 | agrupado |
+| Lazer e espaços públicos | 34 | 574.3 | 777.0 | 0.739 | agrupado |
+| Outros pontos de interesse | 10 | 881.2 | 1432.7 | 0.615 | agrupado |
 
 _R < 1 sugere agrupamento; R ≈ 1, distribuição aleatória; R > 1, dispersão. Sem correção de efeito de borda._
