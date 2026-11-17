@@ -1,7 +1,7 @@
 # GeoSBS — Plataforma de Inteligência Geográfica de São Bento do Sul
 
 **Disciplina:** Geolocalização · **Curso:** Bacharelado em Sistemas de Informação · **Instituição:** UDESC
-**Autor:** _[nome]_ · **Data:** novembro de 2026
+**Autor:** Gustavo N. Becker · **Data:** novembro de 2026
 
 > Os números da seção 11 vêm de `output/reports/resultados.md`, gerado automaticamente
 > pelo sistema. Ao executar uma nova coleta, atualize-os a partir desse arquivo.
