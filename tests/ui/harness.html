@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<!--
+  Roteiro de teste de interface do GeoSBS (usado por tests/ui/run_ui_tests.py).
+  Carrega o mapa num iframe da mesma origem, executa as interações e grava os
+  resultados em JSON no elemento #out; ao terminar, o título vira "pronto".
+-->
+<html lang="pt-BR"><head><meta charset="utf-8"><title>teste</title>
+<style>html,body{margin:0}iframe{border:0;display:block}</style></head>
+<body>
+<iframe id="f" src="geosbs.html" width="1100" height="700"></iframe>
+<pre id="out">pendente</pre>
+<script>
+const f = document.getElementById("f"), out = document.getElementById("out");
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+f.onload = async () => {
+  const w = f.contentWindow, R = {};
+  try {
+    for (let i = 0; i < 400 && !w.geoReady; i++) await sleep(250);
+    R.pronto = !!w.geoReady;
+    const m = w.geoMap, doc = w.document, GEO = w.eval("GEO");
+    const idle = async () => { await new Promise(r => { if (m.loaded()) r(); else m.once("idle", r); setTimeout(r, 8000); }); await sleep(700); };
+    const clusters = () => [...doc.querySelectorAll(".cluster b")].reduce((a, b) => a + +b.textContent, 0);
+    const isolados = () => new Set(m.queryRenderedFeatures({ layers: ["pois"] }).map(x => x.properties.id)).size;
+    // Atualizações por filtro podem levar alguns segundos com renderização por software.
+    const estavel = async () => { let a = -1, b = clusters() + isolados();
+      for (let i = 0; i < 12 && a !== b; i++) { await sleep(800); a = b; b = clusters() + isolados(); } return b; };
+    await idle();
+    const mun = GEO.bounds.municipio, total = GEO.pois.features.length;
+    R.totalEstabelecimentos = total;
+    R.bairros = GEO.bairros.features.length;
+
+    const bm = m.getBounds();
+    R.municipioInteiroAoAbrir = bm.contains(mun[0]) && bm.contains(mun[1]);
+    R.visiveisAoAbrir = await estavel();
+
+    m.jumpTo({ center: [-48.5, -27.6], zoom: 12 }); await idle();          // tenta ir para Florianópolis
+    const c = m.getCenter(), mx = GEO.bounds.max;
+    R.navegacaoContida = c.lng >= mx[0][0] && c.lng <= mx[1][0] && c.lat >= mx[0][1] && c.lat <= mx[1][1];
+    doc.querySelector(".ctrl-home").click(); await sleep(1600); await idle();
+    const bh = m.getBounds(); R.botaoVoltarMunicipio = bh.contains(mun[0]) && bh.contains(mun[1]);
+
+    const saude = GEO.pois.features.filter(x => x.properties.cat === "saude").length;
+    w.geoOnly("saude"); await idle(); R.soSaude = { esperado: saude, obtido: await estavel() };
+    w.geoView("heat"); await idle(); R.verCalor = { calor: m.getLayoutProperty("heat", "visibility"), pontos: await estavel() };
+    w.geoView("markers"); await idle(); R.verMarcadores = { calor: m.getLayoutProperty("heat", "visibility"), pontos: await estavel() };
+    w.geoAll(false); await idle(); R.ocultarTodas = await estavel();
+    w.geoAll(true); await idle(); R.mostrarTodas = await estavel();
+
+    for (const a of ["dens", "total"]) {
+      doc.querySelector(`#analysis button[data-a=${a}]`).click(); await idle();
+      R["coropletico_" + a] = new Set(m.queryRenderedFeatures({ layers: ["bairros-fill"] }).map(x => x.properties.nome)).size;
+    }
+    doc.querySelector("#analysis button[data-a=none]").click();
+
+    for (const b of ["satelite", "hibrido", "relevo", "mapa"]) {
+      doc.querySelector(`#basemaps button[data-base=${b}]`).click(); await idle();
+      R["base_" + b] = { satelite: m.getLayer("sat") ? m.getLayoutProperty("sat", "visibility") : "none",
+                         relevo: m.getLayoutProperty("relief", "visibility"), rotulos: m.getLayoutProperty("label_city", "visibility") };
+    }
+    const src = m.getSource("sat");
+    R.fonteSatelite = src ? (src.tiles[0].includes("ibasemaps") ? "esri" : "sentinel2") : "nenhuma";
+
+    m.jumpTo({ center: [-49.3846, -26.2497], zoom: 17 }); await idle();
+    const hosp = m.queryRenderedFeatures({ layers: ["pois"] }).find(x => /Sagrada/.test(x.properties.nome));
+    if (hosp) m.fire("click", { point: m.project(hosp.geometry.coordinates), lngLat: hosp.geometry.coordinates, originalEvent: {} });
+    await sleep(600);
+    R.popupHospital = /Sagrada Fam/.test((doc.querySelector(".maplibregl-popup-content") || {}).innerText || "");
+
+    m.jumpTo({ center: [-49.38, -26.25], zoom: 12 }); await idle();
+    const z0 = m.getZoom(); const el = doc.querySelector(".cluster"); el && el.click(); await sleep(1500); await idle();
+    R.cliqueClusterAproxima = m.getZoom() > z0 + 1;
+
+    await new Promise(r => { m.once("pitchend", () => setTimeout(r, 300)); m.easeTo({ pitch: 70, duration: 600 }); });
+    await sleep(1500); await idle();
+    R.inclinarLiga3D = { terreno: !!m.getTerrain(), botaoAceso: doc.querySelector(".ctrl-3d").classList.contains("on") };
+    m.jumpTo({ center: [-49.381976, -26.247935], zoom: 13, pitch: 60 }); await sleep(2500); await idle();
+    const e = m.queryTerrainElevation([-49.381976, -26.247935]);
+    R.elevacaoPrefeitura_m = e === null ? null : Math.round(e / m.getTerrain().exaggeration);
+  } catch (err) { R.excecao = String(err && err.stack || err); }
+  out.textContent = JSON.stringify(R);
+  document.title = "pronto";
+};
+</script></body></html>

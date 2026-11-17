@@ -102,11 +102,11 @@ agregados por áreas dependem do recorte adotado, o Problema da Unidade de Área
 |---|---|
 | Aquisição | Download da Malha Municipal 2025 e da Malha de Bairros do Censo 2022 (IBGE, *shapefile*); consulta única à Overpass API do OSM pelo retângulo envolvente do município, salva com data e hora em `data/raw/`. |
 | Classificação | Regras de tags OSM → 8 categorias (`config/categories.json`), com condições opcionais por regra (ex.: centro comunitário só é serviço público com operador público); elementos que não casam são descartados e contados no relatório de qualidade. |
-| Validação | Coordenadas ausentes ou fora da faixa → rejeitadas; pontos fora do polígono municipal (tolerância de 50 m) → rejeitados; nome/endereço ausentes → mantidos com sinalização. |
+| Validação | Coordenadas ausentes ou fora da faixa → rejeitadas; pontos fora do polígono municipal (tolerância de 50 m) → rejeitados; nome/endereço ausentes → mantidos com sinalização. Endereços ausentes recebem a rua mais próxima por geocodificação reversa (Nominatim, 1 requisição/s, com cache), marcada como aproximada. |
 | Deduplicação | Mesma categoria, distância ≤ 75 m e similaridade de nome ≥ 0,85; mantém-se o registro mais completo. |
 | Análise espacial | Junção ponto-em-polígono para atribuir bairro; área em km² na projeção UTM 22S; densidade = registros/km²; proximidade = distância em linha reta do ponto representativo do bairro à unidade mais próxima; índice de Clark-Evans por categoria. |
 | Visualização | MapLibre GL JS: mapa vetorial (OpenFreeMap/OSM), satélite Esri World Imagery (alta resolução, com chave) ou Sentinel-2 (EOxCloudless), relevo sombreado e hipsométrico e terreno 3D a partir de elevação real (SRTM/GMTED2010); ícones SVG por categoria, clusters, mapa de calor, coropléticos e painel HTML/CSS/JS. Versão clássica em Folium (Leaflet) como alternativa sem WebGL. |
-| Verificação | 38 testes automatizados (pytest); conferência da área calculada com a oficial; teste de interface automatizado no navegador (filtros, camadas, popups, clusters e 3D); inspeção visual do mapa. |
+| Verificação | 39 testes automatizados (pytest); conferência da área calculada com a oficial; teste de interface automatizado num navegador real (`tests/ui/run_ui_tests.py`, 21 verificações: enquadramento, navegação, filtros, mapa de calor, coropléticos, mapas-base, popups, clusters e 3D); inspeção visual do mapa. |
 
 Paradas de ônibus são exibidas no mapa, mas excluídas das contagens de estabelecimentos e do
 mapa de calor, para não distorcer a comparação entre bairros.
@@ -199,6 +199,8 @@ Decisões da interface cartográfica:
 | **Registros finais no mapa** | **172** |
 | ↳ sem nome no OSM (mantidos e sinalizados) | 72 |
 | ↳ sem endereço no OSM (mantidos e sinalizados) | 132 |
+| ↳ com endereço aproximado por geocodificação reversa (Nominatim) | 128 |
+| ↳ ainda sem endereço (sem rua com nome por perto) | 3 |
 
 Quase todos os 45 rejeitados ficam nos municípios vizinhos de Campo Alegre e Corupá, que
 caem dentro do retângulo da consulta mas fora do polígono do IBGE. A única duplicata removida
@@ -306,7 +308,10 @@ do limite do bairro.
 - **MAUP e efeito de borda:** resultados dependem do recorte por bairros; o índice de
   Clark-Evans não tem correção de borda nem teste de significância.
 - **Atributos incompletos no OSM:** 72 dos 172 registros (42%) não têm nome e 132 (77%) não têm
-  endereço. Eles são mantidos, porque a localização é válida, mas sinalizados.
+  endereço. Eles são mantidos, porque a localização é válida, mas sinalizados. Para 128 dos sem
+  endereço, a geocodificação reversa (Nominatim) indicou a rua mais próxima; esse endereço é
+  marcado como aproximado, porque a rua mais próxima nem sempre é a de acesso. O bairro continua
+  vindo da junção espacial com o IBGE, e não do Nominatim, para evitar informações conflitantes.
 - **Precisão do limite municipal:** a Malha Municipal do IBGE é compatível com a escala
   1:250.000, então o traçado do limite pode ter erros da ordem de 100 m. Dois registros foram
   rejeitados a 97 m e 139 m do limite (Salão da Capela e Escola Isolada Ernesto Rucker) e podem

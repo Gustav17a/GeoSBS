@@ -13,6 +13,8 @@ Coleta OSM: 2026-11-17T17:41:17. Todos os números abaixo foram calculados pelo 
 | sem_nome | 72 |
 | sem_endereco | 132 |
 | duplicatas_removidas | 1 |
+| enderecos_aproximados | 128 |
+| sem_endereco_final | 3 |
 | registros_finais | 172 |
 
 ## Indicadores gerais

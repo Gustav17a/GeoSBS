@@ -261,3 +261,18 @@ def test_env_file_is_ignored_by_git():
     from pathlib import Path
     root = Path(__file__).resolve().parents[1]
     assert ".env" in (root / ".gitignore").read_text(encoding="utf-8").split()
+
+
+def test_reverse_geocode_offline_uses_only_cache(tmp_path):
+    """Sem --reverse-geocode, só o cache é usado: nenhuma requisição ao Nominatim."""
+    from src.geospatial.geocoding import Geocoder, fill_missing_addresses
+    g = Geocoder(cache_file=tmp_path / "cache.json")
+    g.cache["rev|-26.250000,-49.380000"] = "Rua A, 10"
+    def boom():
+        raise AssertionError("não deveria acessar a internet")
+    g._client = boom
+    df = pd.DataFrame({"endereco": [None, None, "Rua B, 5"], "lat": [-26.25, -26.26, -26.27],
+                       "lon": [-49.38, -49.39, -49.40]})
+    out = fill_missing_addresses(df, online=False, geocoder=g)
+    assert out.at[0, "endereco"] == "Rua A, 10 (aprox., geocodificação reversa)"
+    assert pd.isna(out.at[1, "endereco"]) and out.at[2, "endereco"] == "Rua B, 5"
