@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GeoSBS · Inteligência Geográfica de São Bento do Sul</title>
+<meta name="description" content="Mapa interativo de equipamentos urbanos de São Bento do Sul (SC) com dados do IBGE e do OpenStreetMap.">
+<link rel="stylesheet" href="{{ maplibre_css }}">
+<style>
+  :root {
+    --ui-bg: rgba(17, 24, 39, 0.86); --ui-bg-solid: #111827; --ui-line: rgba(148, 163, 184, 0.22);
+    --ui-fg: #e5e7eb; --ui-muted: #9ca3af; --ui-accent: #22d3ee; --ui-accent-ink: #083344;
+    --radius: 14px; --shadow: 0 12px 32px rgba(2, 6, 23, 0.35);
+    --font: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font: 13px/1.45 var(--font); color: var(--ui-fg); background: #0b1220; }
+  #map { position: absolute; inset: 0; }
+  button { font: inherit; color: inherit; }
+  .glass { background: var(--ui-bg); backdrop-filter: blur(10px) saturate(140%); -webkit-backdrop-filter: blur(10px) saturate(140%);
+           border: 1px solid var(--ui-line); border-radius: var(--radius); box-shadow: var(--shadow); }
+  :focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+
+  /* Cabeçalho */
+  #header { position: absolute; top: 12px; left: 12px; z-index: 3; display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 14px; width: 360px; }
+  #header .brand { display: flex; flex-direction: column; line-height: 1.15; flex: 1; min-width: 0; }
+  #header .brand b { font-size: 17px; letter-spacing: .3px; color: #fff; }
+  #header .brand b span { color: var(--ui-accent); }
+  #header .brand small { color: var(--ui-muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #goto { background: rgba(255,255,255,.06); border: 1px solid var(--ui-line); color: var(--ui-fg); border-radius: 9px; padding: 6px 8px; max-width: 150px; font: inherit; font-size: 12px; }
+  #goto option { color: #111; }
+  .icon-btn { background: transparent; border: 1px solid var(--ui-line); border-radius: 9px; width: 32px; height: 32px; cursor: pointer; display: grid; place-items: center; }
+  .icon-btn:hover { border-color: var(--ui-accent); color: var(--ui-accent); }
+
+  /* Painel lateral */
+  #panel { position: absolute; top: 72px; left: 12px; z-index: 3; width: 360px; max-height: calc(100% - 172px); display: flex; flex-direction: column; overflow: hidden; transition: transform .25s ease, opacity .25s ease; }
+  #panel.hidden { transform: translateX(-110%); opacity: 0; pointer-events: none; }
+  .tabs { display: flex; gap: 4px; padding: 6px; border-bottom: 1px solid var(--ui-line); }
+  .tabs button { flex: 1; background: transparent; border: 0; border-radius: 9px; padding: 7px 4px; cursor: pointer; color: var(--ui-muted); font-weight: 600; font-size: 12px; }
+  .tabs button[aria-selected="true"] { background: rgba(34, 211, 238, .14); color: var(--ui-accent); }
+  .tab-body { overflow-y: auto; padding: 12px 14px 14px; }
+  .tab-body[hidden] { display: none; }
+  h3 { margin: 14px 0 8px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.1px; color: var(--ui-muted); font-weight: 650; }
+  h3:first-child { margin-top: 2px; }
+  .kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .kpi { background: rgba(255,255,255,.04); border: 1px solid var(--ui-line); border-radius: 11px; padding: 9px 11px; }
+  .kpi b { display: block; font-size: 22px; color: #fff; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .kpi b.sm { font-size: 14px; }
+  .kpi small { color: var(--ui-muted); font-size: 11px; }
+  .kpi.wide { grid-column: span 2; }
+  table.rank { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.rank th { text-align: right; color: var(--ui-muted); font-weight: 500; font-size: 10.5px; padding-bottom: 4px; }
+  table.rank th:first-child, table.rank td:first-child { text-align: left; }
+  table.rank td { padding: 4px 0; border-top: 1px solid var(--ui-line); text-align: right; font-variant-numeric: tabular-nums; }
+  table.rank td.n { color: var(--ui-accent); }
+  .note { color: var(--ui-muted); font-size: 11.5px; border-left: 2px solid var(--ui-accent); padding-left: 9px; margin: 8px 0; }
+  .foot { color: var(--ui-muted); font-size: 10.5px; margin-top: 12px; }
+  .foot a { color: var(--ui-accent); }
+
+  /* Filtros */
+  .cat { display: grid; grid-template-columns: 22px 26px 1fr auto auto; gap: 8px; align-items: center; padding: 5px 0; border-top: 1px solid var(--ui-line); }
+  .cat:first-of-type { border-top: 0; }
+  .cat input { accent-color: var(--ui-accent); width: 15px; height: 15px; margin: 0; cursor: pointer; }
+  .cat .badge { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; border: 2px solid #fff; }
+  .cat .badge svg { width: 13px; height: 13px; }
+  .cat label { cursor: pointer; }
+  .cat label small { display: block; color: var(--ui-muted); font-size: 10.5px; }
+  .cat b { font-variant-numeric: tabular-nums; }
+  .chip { background: transparent; border: 1px solid var(--ui-line); border-radius: 999px; padding: 3px 10px; font-size: 11.5px; cursor: pointer; }
+  .chip:hover { border-color: var(--ui-accent); color: var(--ui-accent); }
+  .chip.on { background: rgba(34,211,238,.16); border-color: var(--ui-accent); color: var(--ui-accent); }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+  /* Camadas */
+  .opt { display: flex; align-items: center; gap: 9px; padding: 6px 0; cursor: pointer; }
+  .opt input { accent-color: var(--ui-accent); margin: 0; width: 15px; height: 15px; }
+  .opt small { color: var(--ui-muted); display: block; font-size: 10.5px; }
+  .seg { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .seg button { background: rgba(255,255,255,.04); border: 1px solid var(--ui-line); border-radius: 10px; padding: 8px; cursor: pointer; text-align: left; }
+  .seg button small { display: block; color: var(--ui-muted); font-size: 10.5px; }
+  .seg button.on { border-color: var(--ui-accent); background: rgba(34,211,238,.12); }
+  input[type=range] { width: 100%; accent-color: var(--ui-accent); }
+
+  /* Seletor de mapa-base */
+  #basemaps { position: absolute; left: 12px; bottom: 28px; z-index: 3; display: flex; gap: 6px; padding: 6px; }
+  #basemaps button { width: 68px; border: 2px solid transparent; border-radius: 10px; padding: 0; overflow: hidden; cursor: pointer; background: #1f2937; }
+  #basemaps button .thumb { height: 42px; display: block; }
+  #basemaps button span { display: block; font-size: 11px; padding: 3px 0 4px; color: var(--ui-fg); }
+  #basemaps button.on { border-color: var(--ui-accent); }
+  .t-mapa { background: linear-gradient(135deg, #f2efe9 0 40%, #cde6c4 40% 62%, #a9d3f5 62% 70%, #f2efe9 70%), #f2efe9; }
+  .t-sat { background: radial-gradient(circle at 30% 40%, #5b7a3a, #2f4a22 55%, #1e2f18); }
+  .t-hib { background: radial-gradient(circle at 30% 40%, #5b7a3a, #2f4a22 55%, #1e2f18); position: relative; }
+  .t-hib::after { content: ""; position: absolute; inset: 0; background: linear-gradient(120deg, transparent 45%, #ffd56a 46% 49%, transparent 50%), linear-gradient(30deg, transparent 60%, #fff 61% 62%, transparent 63%); }
+  .t-rel { background: linear-gradient(160deg, #e8dcc0, #b9c99a 45%, #7f9f6c 70%, #57744c); }
+
+  /* Botões 3D (canto superior direito, abaixo da navegação) */
+  .maplibregl-ctrl-group button.ctrl-3d { width: 29px; font-weight: 700; font-size: 11px; }
+  .maplibregl-ctrl-group button.ctrl-3d.on { background: var(--ui-accent); color: var(--ui-accent-ink); }
+
+  /* Legenda */
+  #legend { position: absolute; right: 12px; bottom: 62px; z-index: 3; padding: 10px 12px; min-width: 210px; max-width: 280px; font-size: 11.5px; }
+  #legend[hidden] { display: none; }
+  #legend .ttl { font-weight: 650; margin-bottom: 6px; color: #fff; }
+  #legend .bins { display: flex; flex-direction: column; gap: 3px; }
+  #legend .bins span { display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
+  #legend .bins i { width: 18px; height: 11px; border-radius: 3px; border: 1px solid rgba(255,255,255,.35); }
+  #legend .grad { height: 10px; border-radius: 5px; margin: 4px 0; }
+  #legend .ends { display: flex; justify-content: space-between; color: var(--ui-muted); }
+  #legend .sub { color: var(--ui-muted); margin-top: 6px; }
+
+  /* Clusters (marcadores HTML com anel por categoria) */
+  .cluster { cursor: pointer; display: grid; place-items: center; transition: transform .18s ease; filter: drop-shadow(0 3px 6px rgba(2,6,23,.35)); }
+  .cluster:hover { transform: scale(1.1); }
+  .cluster svg { display: block; }
+  .cluster b { position: absolute; font: 700 13px/1 var(--font); color: #0f172a; font-variant-numeric: tabular-nums; }
+  .cluster.appear { animation: pop .28s ease-out; }
+  @keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  /* Popups */
+  .maplibregl-popup-content { padding: 0; border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); font: 12.5px/1.45 var(--font); color: #111827; min-width: 250px; }
+  .maplibregl-popup-close-button { color: #fff; font-size: 18px; right: 4px; top: 2px; }
+  .pp-head { display: flex; gap: 10px; align-items: center; padding: 11px 30px 10px 12px; color: #fff; }
+  .pp-head .ico { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,.22); display: grid; place-items: center; flex: none; }
+  .pp-head .ico svg { width: 17px; height: 17px; }
+  .pp-head b { font-size: 14px; display: block; line-height: 1.25; }
+  .pp-head small { opacity: .9; }
+  .pp-body { padding: 8px 12px 10px; }
+  .pp-body dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; }
+  .pp-body dt { color: #6b7280; }
+  .pp-body dd { margin: 0; }
+  .pp-body code { font-size: 11px; background: #f3f4f6; padding: 0 4px; border-radius: 4px; }
+  .pp-body a { color: #0e7490; }
+  .na { color: #9ca3af; font-style: italic; }
+
+  /* Dica de bairro (hover) */
+  #tip { position: absolute; z-index: 4; pointer-events: none; padding: 7px 10px; font-size: 12px; transform: translate(14px, 14px); }
+  #tip[hidden] { display: none; }
+  #tip b { color: #fff; }
+
+  #toast { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 5; padding: 9px 14px; }
+  #toast[hidden] { display: none; }
+  #toast a { color: var(--ui-accent); }
+
+  .maplibregl-ctrl-attrib { font-size: 10.5px; }
+
+  @media (max-width: 760px) {
+    #header { width: calc(100% - 24px); }
+    #panel { top: auto; bottom: 0; left: 0; width: 100%; max-height: 52%; border-radius: var(--radius) var(--radius) 0 0; }
+    #basemaps { bottom: auto; top: 72px; left: 12px; }
+    #basemaps button { width: 52px; } #basemaps button .thumb { height: 28px; }
+    #legend { bottom: auto; top: 140px; right: 12px; min-width: 0; }
+  }
+</style>
+</head>
+<body>
+<div id="map" role="region" aria-label="Mapa de São Bento do Sul"></div>
+
+<header id="header" class="glass">
+  <div class="brand"><b>Geo<span>SBS</span></b><small>Inteligência Geográfica de São Bento do Sul · SC</small></div>
+  <select id="goto" aria-label="Ir para">
+    <option value="urbano">Área urbana</option>
+    <option value="municipio">Município inteiro</option>
+    <optgroup label="Bairros">
+      {% for b in data.bairroList %}<option value="b:{{ loop.index0 }}">{{ b.nome }}</option>{% endfor %}
+    </optgroup>
+  </select>
+  <button class="icon-btn" id="togglePanel" aria-label="Mostrar/ocultar painel" title="Mostrar/ocultar painel">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+</header>
+
+<aside id="panel" class="glass" aria-label="Painel do GeoSBS">
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="ind">Indicadores</button>
+    <button role="tab" aria-selected="false" data-tab="fil">Categorias</button>
+    <button role="tab" aria-selected="false" data-tab="cam">Camadas</button>
+  </div>
+
+  <section class="tab-body" id="tab-ind" role="tabpanel">
+    <div class="kpis">
+      <div class="kpi"><b>{{ s.total_estabelecimentos }}</b><small>estabelecimentos e equipamentos</small></div>
+      <div class="kpi"><b>{{ s.bairros_com_registros }}<span style="font-size:14px;color:var(--ui-muted)">/{{ s.bairros_analisados }}</span></b><small>bairros com registros</small></div>
+      <div class="kpi wide"><small>Categoria com mais registros</small><b class="sm">{{ s.categoria_mais_registros or "—" }}</b></div>
+      {% if s.bairro_maior_quantidade %}
+      <div class="kpi"><small>Maior quantidade</small><b class="sm">{{ s.bairro_maior_quantidade.bairro }}</b><small>{{ s.bairro_maior_quantidade.valor }} registros</small></div>
+      <div class="kpi"><small>Maior densidade</small><b class="sm">{{ s.bairro_maior_densidade.bairro }}</b><small>{{ "%.1f"|format(s.bairro_maior_densidade.valor) }} por km²</small></div>
+      {% endif %}
+      {% if s.bairros_sem_registros %}
+      <div class="kpi wide"><small>Sem registros na base ({{ s.bairros_sem_registros|length }} bairros)</small><b class="sm" style="font-weight:500">{{ s.bairros_sem_registros|join(", ") }}</b></div>
+      {% endif %}
+    </div>
+    <h3>Bairros com mais registros</h3>
+    <table class="rank">
+      <tr><th>Bairro</th><th>Quantidade</th><th>Por km²</th></tr>
+      {% for r in data.topBairros %}<tr><td>{{ r.nome }}</td><td class="n">{{ r.total }}</td><td>{{ "%.2f"|format(r.dens) }}</td></tr>{% endfor %}
+    </table>
+    <p class="note"><b>Como ler:</b> o mapa mostra a distribuição dos <i>registros coletados</i> no OpenStreetMap,
+      não a capacidade real dos serviços. Quantidade, densidade (por km²) e proximidade são medidas diferentes.</p>
+    {% if s.fora_dos_bairros %}<p class="note">{{ s.fora_dos_bairros }} registros ficam fora dos {{ s.bairros_analisados }} bairros oficiais (área rural ou não abrangida).</p>{% endif %}
+    <div class="foot">
+      Dados: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">colaboradores do OpenStreetMap</a> (ODbL), coleta em {{ s.data_coleta or "—" }};
+      IBGE — Malha Municipal 2022 e Bairros do Censo 2022. Gerado em {{ generated_at }}.<br>
+      <a href="geosbs_classico.html">Versão clássica (Leaflet)</a> · GeoSBS · UDESC
+    </div>
+  </section>
+
+  <section class="tab-body" id="tab-fil" role="tabpanel" hidden>
+    <h3>Filtrar estabelecimentos</h3>
+    {% for c in categories %}
+    <div class="cat">
+      <input type="checkbox" id="cat-{{ c.id }}" data-cat="{{ c.id }}" checked>
+      <span class="badge" style="background:{{ c.hex }}"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">{{ c.svg|safe }}</svg></span>
+      <label for="cat-{{ c.id }}">{{ c.label }}{% if c.stops %}<small>+ {{ c.stops }} paradas de ônibus (só no mapa)</small>{% endif %}</label>
+      <b>{{ c.count }}</b>
+      <button class="chip" data-only="{{ c.id }}" title="Mostrar só {{ c.label }}">só</button>
+    </div>
+    {% endfor %}
+    <div class="row">
+      <button class="chip" id="btnAll">mostrar todas</button>
+      <button class="chip" id="btnNone">ocultar todas</button>
+      <button class="chip" id="btnHeat">ver mapa de calor</button>
+      <button class="chip" id="btnMarkers">ver marcadores</button>
+    </div>
+    <p class="note">As paradas de ônibus aparecem a partir do zoom 14 e não entram nas contagens nem no mapa de calor.
+      A cor identifica a categoria, e o ícone também: com 8 categorias, nenhuma paleta é distinguível só pela cor para pessoas com daltonismo.</p>
+  </section>
+
+  <section class="tab-body" id="tab-cam" role="tabpanel" hidden>
+    <h3>Análise por bairro (uma por vez)</h3>
+    <div class="seg" id="analysis">
+      <button data-a="none" class="on">Nenhuma<small>só os pontos</small></button>
+      <button data-a="dens">Densidade<small>por km²</small></button>
+      <button data-a="total">Quantidade<small>por bairro</small></button>
+      <button data-a="heat">Mapa de calor<small>intensidade</small></button>
+    </div>
+    <h3>Relevo 3D</h3>
+    <label class="opt"><input type="checkbox" id="opt3d"><span>Terreno em 3D<small>Elevação real: SRTM/GMTED2010 (USGS), via Terrain Tiles</small></span></label>
+    <label for="exag" style="display:block;color:var(--ui-muted);font-size:11.5px">Exagero vertical: <b id="exagVal">1,5×</b></label>
+    <input type="range" id="exag" min="1" max="2.5" step="0.1" value="1.5">
+    <div class="row"><button class="chip" id="btnSerra">Vista da Serra do Mar</button><button class="chip" id="btnTop">Vista de cima</button></div>
+    <h3>Sobreposições</h3>
+    <label class="opt"><input type="checkbox" id="optBairros" checked><span>Limites dos bairros<small>IBGE, Censo 2022</small></span></label>
+    <label class="opt"><input type="checkbox" id="optMun" checked><span>Limite municipal<small>IBGE, Malha 2022</small></span></label>
+    <label class="opt"><input type="checkbox" id="optInfra" checked><span>Infraestrutura urbana<small>Ruas, ferrovias e edificações do OpenStreetMap</small></span></label>
+    <label class="opt"><input type="checkbox" id="optHill" checked><span>Sombreamento do relevo<small>Calculado do modelo de elevação</small></span></label>
+    <label class="opt"><input type="checkbox" id="optEsri"><span>Satélite em alta resolução (Esri)<small>Padrão: Sentinel-2 (EOxCloudless, 10 m)</small></span></label>
+  </section>
+</aside>
+
+<nav id="basemaps" class="glass" aria-label="Mapa-base">
+  <button data-base="mapa" class="on"><i class="thumb t-mapa"></i><span>Mapa</span></button>
+  <button data-base="satelite"><i class="thumb t-sat"></i><span>Satélite</span></button>
+  <button data-base="hibrido"><i class="thumb t-hib"></i><span>Híbrido</span></button>
+  <button data-base="relevo"><i class="thumb t-rel"></i><span>Relevo</span></button>
+</nav>
+
+<div id="legend" class="glass" hidden aria-live="polite"></div>
+<div id="tip" class="glass" hidden></div>
+<div id="toast" class="glass" hidden></div>
+
+<script src="{{ maplibre_js }}"></script>
+<script>
+"use strict";
+const GEO = {{ data|tojson }};
+const CATS = Object.fromEntries(GEO.categories.map(c => [c.id, c]));
+const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+const DEM_TILES = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
+const DEM_ATTR = '<a href="https://registry.opendata.aws/terrain-tiles/" target="_blank">Terrain Tiles</a>: SRTM e GMTED2010, cortesia do U.S. Geological Survey';
+const SAT = {
+  eox: { tiles: ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg"], maxzoom: 15,
+         attribution: '<a href="https://cloudless.eox.at" target="_blank">EOxCloudless 2024</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024), CC BY-NC-SA 4.0' },
+  esri: { tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], maxzoom: 19,
+          attribution: "Imagens © Esri, Maxar, Earthstar Geographics e comunidade de usuários GIS" },
+};
+
+/* ---------- utilidades ---------- */
+const $ = (sel) => document.querySelector(sel);
+const esc = (v) => (v === null || v === undefined || v === "") ? null
+  : String(v).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+const fmt = (n, d = 0) => Number(n).toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
+function toast(html, ms = 6000) { const t = $("#toast"); t.innerHTML = html; t.hidden = false; clearTimeout(toast._t); if (ms) toast._t = setTimeout(() => t.hidden = true, ms); }
+const iconSvg = (cat, size, stroke = "#fff") =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${CATS[cat].svg}</svg>`;
+
+/* ---------- estado ---------- */
+const state = {
+  active: new Set(GEO.categories.map(c => c.id)),
+  base: "mapa", analysis: "none", terrain: false, exag: 1.5,
+  bairros: true, mun: true, infra: true, hill: true, esri: false,
+};
+
+/* ---------- mapa ---------- */
+let map;
+try {
+  map = new maplibregl.Map({
+    container: "map", style: STYLE_URL,
+    bounds: GEO.bounds.urbano, fitBoundsOptions: { padding: fitPadding() },
+    maxPitch: 80, attributionControl: false, canvasContextAttributes: { antialias: true },
+  });
+} catch (err) {
+  toast('Este navegador não conseguiu iniciar o mapa (WebGL indisponível). Use a <a href="geosbs_classico.html">versão clássica</a>.', 0);
+  throw err;
+}
+window.geoMap = map;
+map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
+map.addControl(new maplibregl.FullscreenControl(), "top-right");
+
+class TerrainToggle {
+  onAdd() {
+    this._c = document.createElement("div"); this._c.className = "maplibregl-ctrl maplibregl-ctrl-group";
+    this._c.innerHTML = '<button class="ctrl-3d" type="button" title="Relevo em 3D" aria-label="Alternar relevo 3D">3D</button>';
+    this._c.firstChild.onclick = () => setTerrain(!state.terrain);
+    return this._c;
+  }
+  onRemove() { this._c.remove(); }
+}
+map.addControl(new TerrainToggle(), "top-right");
+map.addControl(new maplibregl.ScaleControl({ unit: "metric", maxWidth: 110 }), "bottom-right");
+map.addControl(new maplibregl.AttributionControl({ compact: true,
+  customAttribution: 'Limites: <a href="https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais.html" target="_blank">IBGE</a>' }), "bottom-right");
+
+function fitPadding() {
+  const wide = window.innerWidth > 760;
+  return wide ? { top: 80, bottom: 110, left: 400, right: 70 } : { top: 140, bottom: 40, left: 30, right: 30 };
+}
+
+/* Falhas isoladas de tiles são normais (o mapa tenta de novo); só avisamos se o ESTILO
+   do mapa-base não carregar — erros de estilo não têm sourceId. */
+let styleError = null;
+map.on("error", (e) => {
+  console.warn("MapLibre:", e.sourceId || "estilo", e.error && e.error.message);
+  if (!e.sourceId && !window.geoReady) styleError = e;
+});
+setTimeout(() => {
+  if (!window.geoReady && styleError)
+    toast('Não foi possível carregar o mapa-base (verifique a internet). A <a href="geosbs_classico.html">versão clássica</a> também está disponível.', 0);
+}, 15000);
+
+/* Grupos de camadas do estilo vetorial (OpenFreeMap Liberty) */
+const G = { fills: [], water: [], roads: [], buildings: [], labels: [], boundary: [], other: [] };
+let FIRST_LABEL, FIRST_WATER;
+const ROAD_OPACITY = {};
+let BG_COLOR;
+
+map.on("load", async () => {
+  for (const l of map.getStyle().layers) {
+    const sl = l["source-layer"] || "";
+    if (sl === "poi" || l.id === "building-3d") { map.setLayoutProperty(l.id, "visibility", "none"); continue; }
+    if (l.type === "symbol") { G.labels.push(l.id); FIRST_LABEL ??= l.id; }
+    else if (sl === "building") G.buildings.push(l.id);
+    else if (sl === "transportation" || sl === "aeroway") G.roads.push(l.id);
+    else if (sl === "water" || sl === "waterway") { G.water.push(l.id); FIRST_WATER ??= l.id; }
+    else if (sl === "boundary") G.boundary.push(l.id);
+    else if (l.type === "background") continue;
+    else if (l.type === "raster") G.other.push(l.id);
+    else G.fills.push(l.id);
+  }
+  // Ajuste fino de cores: vegetação e água um pouco mais naturais, sem competir com os dados.
+  trySet("landcover_wood", "fill-color", "#cfe3bf"); trySet("landcover_wood", "fill-opacity", 0.75);
+  trySet("park", "fill-color", "#d8ebcc");
+  trySet("water", "fill-color", "#a7d0e8");
+
+  await addCategoryIcons();
+  addDataLayers();
+  addHillshade();
+  bindUI();
+  applyBase();
+  applyOverlays();
+  applyAnalysis();
+  refreshPoints();
+  map.on("render", updateClusters);
+  window.geoReady = true;
+});
+
+function trySet(id, prop, val) { if (map.getLayer(id)) map.setPaintProperty(id, prop, val); }
+
+/* Ícones das categorias: círculo colorido + ícone Lucide branco, rasterizados em 2x */
+async function addCategoryIcons() {
+  await Promise.all(GEO.categories.map(async (c) => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+      <circle cx="32" cy="32" r="27" fill="${c.hex}" stroke="#ffffff" stroke-width="5"/>
+      <g transform="translate(17 17) scale(1.25)" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${c.svg}</g></svg>`;
+    const img = new Image(64, 64);
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    await img.decode();
+    map.addImage("cat-" + c.id, img, { pixelRatio: 2 });
+  }));
+}
+
+function addDataLayers() {
+  const clusterProps = Object.fromEntries(GEO.categories.map(c =>
+    [c.id, ["+", ["case", ["==", ["get", "cat"], c.id], 1, 0]]]));
+  map.addSource("pois", { type: "geojson", data: GEO.pois, cluster: true, clusterRadius: 40,
+                          clusterMaxZoom: 14, clusterProperties: clusterProps });
+  map.addSource("paradas", { type: "geojson", data: GEO.paradas });
+  map.addSource("heat", { type: "geojson", data: GEO.pois });
+  map.addSource("bairros", { type: "geojson", data: GEO.bairros, promoteId: "nome" });
+  map.addSource("municipio", { type: "geojson", data: GEO.municipio });
+
+  // Coroplético e limites dos bairros ficam ABAIXO dos rótulos do mapa-base (legibilidade).
+  map.addLayer({ id: "bairros-fill", type: "fill", source: "bairros",
+    paint: { "fill-color": "#000", "fill-opacity": 0.72, "fill-outline-color": "rgba(0,0,0,0)" },
+    layout: { visibility: "none" } }, FIRST_LABEL);
+  map.addLayer({ id: "bairros-line", type: "line", source: "bairros",
+    paint: { "line-color": ["case", ["boolean", ["feature-state", "hover"], false], "#0e7490", "#0891b2"],
+             "line-width": ["case", ["boolean", ["feature-state", "hover"], false], 3, 1.2],
+             "line-opacity": 0.85 } }, FIRST_LABEL);
+
+  map.addLayer({ id: "municipio-line", type: "line", source: "municipio",
+    paint: { "line-color": "#0f172a", "line-width": 2.4, "line-dasharray": [3, 2], "line-opacity": 0.85 } });
+
+  // Mapa de calor: todos os estabelecimentos (não inclui paradas de ônibus). Escala sequencial amarelo→vermelho.
+  map.addLayer({ id: "heat", type: "heatmap", source: "heat", layout: { visibility: "none" },
+    paint: {
+      "heatmap-weight": 1,
+      "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 10, 0.45, 13, 0.75, 16, 1.4],
+      "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 10, 12, 13, 22, 16, 40],
+      "heatmap-color": ["interpolate", ["linear"], ["heatmap-density"],
+        0, "rgba(255,237,160,0)", 0.15, "rgba(255,237,160,0.55)", 0.35, "#fed976",
+        0.55, "#fd8d3c", 0.75, "#e31a1c", 1, "#800026"],
+      "heatmap-opacity": 0.85 } });
+
+  map.addLayer({ id: "paradas", type: "circle", source: "paradas", minzoom: 14,
+    paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 14, 3.5, 17, 6],
+             "circle-color": CATS.transporte.hex, "circle-stroke-color": "#fff", "circle-stroke-width": 1.5 } });
+
+  // Camada invisível dos clusters: mantém os dados carregados para os marcadores HTML.
+  map.addLayer({ id: "clusters-hit", type: "circle", source: "pois", filter: ["has", "point_count"],
+    paint: { "circle-radius": 1, "circle-opacity": 0 } });
+
+  map.addLayer({ id: "pois-shadow", type: "circle", source: "pois", filter: ["!", ["has", "point_count"]],
+    paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 10, 16, 14],
+             "circle-color": "rgba(2,6,23,0.45)", "circle-blur": 0.7, "circle-translate": [0, 2] } });
+  map.addLayer({ id: "pois", type: "symbol", source: "pois", filter: ["!", ["has", "point_count"]],
+    layout: {
+      "icon-image": ["concat", "cat-", ["get", "cat"]],
+      "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.72, 16, 0.95],
+      "icon-allow-overlap": true, "icon-ignore-placement": true,
+      "text-field": ["step", ["zoom"], "", 15.5, ["coalesce", ["get", "nome"], ""]],
+      "text-font": ["Noto Sans Regular"], "text-size": 11.5, "text-offset": [0, 1.45],
+      "text-anchor": "top", "text-optional": true, "text-max-width": 10 },
+    paint: { "text-color": "#1f2937", "text-halo-color": "#ffffff", "text-halo-width": 1.6 } });
+
+  // Quando a fonte termina de recarregar (ex.: após um filtro), redesenha os clusters.
+  map.on("sourcedata", (e) => { if (e.sourceId === "pois" && e.isSourceLoaded) { map.triggerRepaint(); updateClusters(); } });
+
+  // Interações
+  for (const id of ["pois", "paradas"]) {
+    map.on("click", id, (e) => openPopup(e.features[0]));
+    map.on("mouseenter", id, () => { map.getCanvas().style.cursor = "pointer"; hideTip(); });
+    map.on("mouseleave", id, () => { map.getCanvas().style.cursor = ""; });
+  }
+  let hovered = null;
+  map.on("mousemove", (e) => {
+    const onPoint = map.queryRenderedFeatures(e.point, { layers: ["pois", "paradas", "clusters-hit"].filter(l => map.getLayer(l)) }).length;
+    const layers = ["bairros-fill", "bairros-line"].filter(l => map.getLayoutProperty(l, "visibility") !== "none");
+    const f = !onPoint && layers.length ? pickBairro(e.lngLat) : null;
+    if (hovered !== null && hovered !== (f && f.properties.nome)) map.setFeatureState({ source: "bairros", id: hovered }, { hover: false });
+    if (!f) { hovered = null; hideTip(); return; }
+    hovered = f.properties.nome;
+    map.setFeatureState({ source: "bairros", id: hovered }, { hover: true });
+    const p = f.properties, tip = $("#tip");
+    tip.innerHTML = `<b>${esc(p.nome)}</b><br>${fmt(p.total)} estabelecimentos · ${fmt(p.dens, 2)} por km²<br><span style="color:var(--ui-muted)">Área ${fmt(p.area, 2)} km²</span>`;
+    tip.style.left = e.point.x + "px"; tip.style.top = e.point.y + "px"; tip.hidden = false;
+  });
+  map.on("mouseout", hideTip);
+}
+function hideTip() { $("#tip").hidden = true; }
+/* Ponto-em-polígono no próprio navegador: funciona mesmo com a camada de preenchimento oculta. */
+function pickBairro(ll) {
+  const x = ll.lng, y = ll.lat;
+  const inRing = (ring) => { let ins = false; for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) ins = !ins; } return ins; };
+  const inPoly = (poly) => inRing(poly[0]) && !poly.slice(1).some(inRing);
+  return GEO.bairros.features.find(f => f.geometry.type === "Polygon" ? inPoly(f.geometry.coordinates)
+    : f.geometry.coordinates.some(inPoly)) || null;
+}
+
+function addHillshade() {
+  map.addSource("dem-hill", { type: "raster-dem", tiles: [DEM_TILES], tileSize: 256, maxzoom: 15, encoding: "terrarium", attribution: DEM_ATTR });
+  map.addLayer({ id: "hillshade", type: "hillshade", source: "dem-hill",
+    paint: { "hillshade-exaggeration": 0.35, "hillshade-shadow-color": "#3d4a3a",
+             "hillshade-highlight-color": "#ffffff", "hillshade-accent-color": "#5a6b52",
+             "hillshade-illumination-direction": 315 } }, FIRST_WATER);
+  // Cores por altitude (hipsometria) — disponível no MapLibre 5; se não houver suporte, o relevo usa só o sombreamento.
+  try {
+    map.addLayer({ id: "relief", type: "color-relief", source: "dem-hill", layout: { visibility: "none" },
+      paint: { "color-relief-opacity": 0.55, "color-relief-color": ["interpolate", ["linear"], ["elevation"],
+        0, "#3f7f4f", 200, "#79a85f", 450, "#b5c47c", 700, "#e6dc9c", 820, "#ecc98a", 920, "#d9a573", 1020, "#bb8462", 1200, "#93705f", 1500, "#f3f0ea"] } }, "hillshade");
+  } catch (err) { console.info("color-relief indisponível:", err.message); }
+}
+
+function ensureSatellite() {
+  const key = state.esri ? "esri" : "eox";
+  if (map.getSource("sat") && ensureSatellite.key === key) return;
+  if (map.getLayer("sat")) map.removeLayer("sat");
+  if (map.getSource("sat")) map.removeSource("sat");
+  map.addSource("sat", { type: "raster", tileSize: 256, ...SAT[key] });
+  map.addLayer({ id: "sat", type: "raster", source: "sat", paint: { "raster-fade-duration": 200 } }, G.fills[0]);
+  ensureSatellite.key = key;
+}
+
+/* ---------- mapa-base, sobreposições e análises ---------- */
+function vis(ids, on) { for (const id of [].concat(ids)) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none"); }
+
+function applyBase() {
+  const b = state.base, sat = b === "satelite" || b === "hibrido";
+  if (sat) ensureSatellite();
+  vis("sat", sat);
+  vis(G.fills, b === "mapa" || b === "relevo");
+  vis(G.other, !sat);
+  vis(G.water, b !== "satelite");
+  vis(G.roads, state.infra && b !== "satelite");
+  vis(G.buildings, state.infra && (b === "mapa"));
+  vis(G.labels, b !== "satelite");
+  vis(G.boundary, b !== "satelite");
+  vis("hillshade", state.hill && !sat);
+  vis("relief", b === "relevo");
+  trySet("hillshade", "hillshade-exaggeration", b === "relevo" ? 0.7 : 0.35);
+  if (b === "relevo") for (const id of G.fills) if (/landcover|park/.test(id)) vis(id, false);
+  if (b === "hibrido") for (const id of G.water) if (map.getLayer(id) && map.getLayer(id).type === "fill") vis(id, false);
+  // Enquanto tiles de satélite carregam, o fundo fica verde-escuro (e não branco).
+  if (BG_COLOR === undefined) BG_COLOR = map.getPaintProperty("background", "background-color");
+  trySet("background", "background-color", sat ? "#1f2b20" : BG_COLOR);
+  // Na imagem de satélite, ruas mais discretas e limites em branco.
+  for (const id of G.roads) {
+    const l = map.getLayer(id); if (!l || l.type !== "line") continue;
+    if (!(id in ROAD_OPACITY)) ROAD_OPACITY[id] = map.getPaintProperty(id, "line-opacity");
+    map.setPaintProperty(id, "line-opacity", b === "hibrido" ? 0.5 : ROAD_OPACITY[id]);
+  }
+  trySet("municipio-line", "line-color", sat ? "#ffffff" : "#0f172a");
+  trySet("bairros-line", "line-color", sat ? ["case", ["boolean", ["feature-state", "hover"], false], "#ffffff", "#a5f3fc"]
+                                           : ["case", ["boolean", ["feature-state", "hover"], false], "#0e7490", "#0891b2"]);
+  document.querySelectorAll("#basemaps button").forEach(btn => btn.classList.toggle("on", btn.dataset.base === b));
+  renderLegend();
+}
+
+function applyOverlays() {
+  vis("bairros-line", state.bairros);
+  vis("municipio-line", state.mun);
+  applyBase();
+}
+
+function applyAnalysis() {
+  const a = state.analysis;
+  if (a === "total" || a === "dens") {
+    const cfg = GEO.choropleth[a], cols = GEO.choropleth.colors;
+    const n = cfg.breaks.length - 1, pal = cols.slice(-n);
+    const expr = ["step", ["get", a]];
+    expr.push(pal[0]);
+    for (let i = 1; i < n; i++) { expr.push(cfg.breaks[i] + 1e-9); expr.push(pal[i]); }
+    map.setPaintProperty("bairros-fill", "fill-color", expr);
+  }
+  vis("bairros-fill", a === "total" || a === "dens");
+  vis("heat", a === "heat");
+  document.querySelectorAll("#analysis button").forEach(btn => btn.classList.toggle("on", btn.dataset.a === a));
+  renderLegend();
+}
+
+function renderLegend() {
+  const L = $("#legend"), parts = [];
+  const a = state.analysis;
+  if (a === "total" || a === "dens") {
+    const cfg = GEO.choropleth[a];
+    parts.push(`<div class="ttl">${cfg.title}</div><div class="bins">` +
+      cfg.bins.map(b => `<span><i style="background:${b.color}"></i>${b.label.replace(/\./g, ",")}</span>`).join("") +
+      `</div><div class="sub">Classes por quantis. A classe mais clara inclui os bairros sem registros.</div>`);
+  } else if (a === "heat") {
+    parts.push(`<div class="ttl">Mapa de calor</div><div class="grad" style="background:linear-gradient(90deg,#ffeda0,#fed976,#fd8d3c,#e31a1c,#800026)"></div>
+      <div class="ends"><span>menor concentração</span><span>maior</span></div>
+      <div class="sub">Todos os ${GEO.summary.total_estabelecimentos} estabelecimentos (sem paradas de ônibus).</div>`);
+  }
+  if (state.terrain) parts.push(`<div class="sub"><b style="color:#fff">Relevo 3D</b> com exagero vertical de ${fmt(state.exag, 1)}×.</div>`);
+  if (state.base === "relevo") parts.push(`<div class="ttl" style="margin-top:6px">Altitude (m)</div><div class="grad" style="background:linear-gradient(90deg,#3f7f4f 0%,#79a85f 13%,#b5c47c 30%,#e6dc9c 47%,#ecc98a 55%,#d9a573 61%,#bb8462 68%,#93705f 80%)"></div><div class="ends"><span>0</span><span>450</span><span>820</span><span>1.020</span><span>1.200+</span></div><div class="sub">Mais cores entre 700 e 1.100 m, faixa do planalto de São Bento do Sul.</div>`);
+  if ((state.base === "satelite" || state.base === "hibrido") && !state.esri) parts.push(`<div class="sub">Satélite Sentinel-2 (10 m por pixel): bom para matas e relevo. Para ver ruas e telhados, ative <b>Satélite em alta resolução</b> em Camadas.</div>`);
+  L.innerHTML = parts.join('<hr style="border:0;border-top:1px solid var(--ui-line);margin:8px 0">');
+  L.hidden = parts.length === 0;
+}
+
+/* ---------- filtros de categoria ---------- */
+function refreshPoints() {
+  const feats = GEO.pois.features.filter(f => state.active.has(f.properties.cat));
+  map.getSource("pois").setData({ type: "FeatureCollection", features: feats });
+  map.triggerRepaint();  // garante o redesenho mesmo se nada mais mudar na tela
+  vis("paradas", state.active.has("transporte"));
+  document.querySelectorAll("input[data-cat]").forEach(inp => inp.checked = state.active.has(inp.dataset.cat));
+  // Os clusters mudam com o filtro: descarta os marcadores antigos antes de redesenhar.
+  for (const m of onScreen.values()) m.remove();
+  onScreen = new Map(); clusterCache.clear(); updateClusters();
+}
+
+/* API pública do painel (mesmos comandos do mapa clássico) */
+window.geoOnly = (cat) => { state.active = new Set([cat]); refreshPoints(); geoView("markers"); };
+window.geoAll = (on) => { state.active = new Set(on ? GEO.categories.map(c => c.id) : []); refreshPoints(); };
+window.geoView = (mode) => {
+  if (mode === "heat") { state.active = new Set(); refreshPoints(); state.analysis = "heat"; }
+  else { if (state.analysis === "heat") state.analysis = "none"; if (!state.active.size) geoAll(true); }
+  applyAnalysis();
+};
+window.geoState = state;
+
+/* ---------- clusters em HTML: anel dividido pelas categorias ---------- */
+const clusterCache = new Map(); let onScreen = new Map();
+function donut(props, size) {
+  const total = props.point_count, r = size / 2 - 3, cx = size / 2, C = 2 * Math.PI * r;
+  let off = 0, segs = "";
+  for (const c of GEO.categories) {
+    const n = props[c.id] || 0; if (!n) continue;
+    const len = C * n / total;
+    segs += `<circle r="${r}" cx="${cx}" cy="${cx}" fill="none" stroke="${c.hex}" stroke-width="5"
+      stroke-dasharray="${Math.max(len - 1.5, 0.5)} ${C}" stroke-dashoffset="${-off}" transform="rotate(-90 ${cx} ${cx})"/>`;
+    off += len;
+  }
+  return `<svg width="${size}" height="${size}"><circle r="${r}" cx="${cx}" cy="${cx}" fill="#ffffff"/>${segs}</svg>`;
+}
+function updateClusters() {
+  if (!map.getSource("pois") || !map.isSourceLoaded("pois")) return;
+  const next = new Map();
+  for (const f of map.querySourceFeatures("pois")) {
+    const p = f.properties; if (!p.cluster) continue;
+    const id = p.cluster_id; if (next.has(id)) continue;
+    let m = clusterCache.get(id);
+    if (!m) {
+      const size = p.point_count < 10 ? 38 : p.point_count < 50 ? 46 : 56;
+      const el = document.createElement("div"); el.className = "cluster appear";
+      el.style.width = el.style.height = size + "px";
+      const parts = GEO.categories.filter(c => p[c.id]).map(c => `${c.label}: ${p[c.id]}`).join("\n");
+      el.title = `${p.point_count} estabelecimentos — clique para aproximar\n${parts}`;
+      el.setAttribute("role", "button"); el.setAttribute("aria-label", `${p.point_count} estabelecimentos agrupados`);
+      el.innerHTML = donut(p, size) + `<b>${p.point_count}</b>`;
+      const coords = f.geometry.coordinates;
+      el.addEventListener("click", async () => {
+        const z = await map.getSource("pois").getClusterExpansionZoom(id);
+        map.easeTo({ center: coords, zoom: Math.min(z + 0.3, 18), duration: 650 });
+      });
+      m = new maplibregl.Marker({ element: el }).setLngLat(coords);
+      clusterCache.set(id, m);
+    }
+    next.set(id, m);
+    if (!onScreen.has(id)) m.addTo(map);
+  }
+  for (const [id, m] of onScreen) if (!next.has(id)) m.remove();
+  onScreen = next;
+}
+
+/* ---------- popups ---------- */
+function openPopup(f) {
+  const p = f.properties, c = CATS[p.cat];
+  const val = (v) => esc(v) ?? '<span class="na">não informado</span>';
+  const nome = esc(p.nome) ?? '<span style="opacity:.85;font-style:italic">(sem nome no OSM)</span>';
+  const src = p.fonte === "OpenStreetMap"
+    ? `<a href="https://www.openstreetmap.org/${esc(p.id_fonte)}" target="_blank" rel="noopener">OpenStreetMap (${esc(p.id_fonte)})</a>` : val(p.fonte);
+  const kind = p.estab === false ? "Parada de ônibus" : c.label;
+  const html = `<div class="pp-head" style="background:${c.hex}"><span class="ico">${iconSvg(p.cat, 17)}</span>
+      <div><b>${nome}</b><small>${esc(kind)}</small></div></div>
+    <div class="pp-body"><dl>
+      <dt>Tipo (tag)</dt><dd><code>${val(p.tag)}</code></dd>
+      <dt>Endereço</dt><dd>${val(p.endereco)}</dd>
+      <dt>Bairro</dt><dd>${val(p.bairro)}</dd>
+      <dt>Coordenadas</dt><dd>${Number(p.lat).toFixed(6)}, ${Number(p.lon).toFixed(6)}</dd>
+      <dt>Fonte</dt><dd>${src}</dd></dl></div>`;
+  new maplibregl.Popup({ offset: 16, maxWidth: "320px", focusAfterOpen: false })
+    .setLngLat(f.geometry.coordinates).setHTML(html).addTo(map);
+}
+
+/* ---------- relevo 3D ---------- */
+function setTerrain(on) {
+  state.terrain = on;
+  if (on) {
+    if (!map.getSource("dem-3d"))
+      map.addSource("dem-3d", { type: "raster-dem", tiles: [DEM_TILES], tileSize: 256, maxzoom: 15, encoding: "terrarium", attribution: DEM_ATTR });
+    map.setTerrain({ source: "dem-3d", exaggeration: state.exag });
+    if (map.setSky) map.setSky({ "sky-color": "#9cc7ef", "horizon-color": "#e8f0f7", "fog-color": "#e8eef2",
+                                 "sky-horizon-blend": 0.6, "horizon-fog-blend": 0.6, "fog-ground-blend": 0.25 });
+    if (map.getPitch() < 30) map.easeTo({ pitch: 62, bearing: -18, duration: 1200 });
+  } else {
+    map.setTerrain(null);
+    map.easeTo({ pitch: 0, bearing: 0, duration: 900 });
+  }
+  document.querySelectorAll(".ctrl-3d").forEach(b => b.classList.toggle("on", on));
+  $("#opt3d").checked = on;
+  renderLegend();
+}
+
+/* ---------- interface ---------- */
+function bindUI() {
+  document.querySelectorAll(".tabs button").forEach(btn => btn.onclick = () => {
+    document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b === btn));
+    document.querySelectorAll(".tab-body").forEach(s => s.hidden = s.id !== "tab-" + btn.dataset.tab);
+  });
+  $("#togglePanel").onclick = () => $("#panel").classList.toggle("hidden");
+  document.querySelectorAll("input[data-cat]").forEach(inp => inp.onchange = () => {
+    inp.checked ? state.active.add(inp.dataset.cat) : state.active.delete(inp.dataset.cat);
+    refreshPoints();
+  });
+  document.querySelectorAll("button[data-only]").forEach(b => b.onclick = () => geoOnly(b.dataset.only));
+  $("#btnAll").onclick = () => geoAll(true);
+  $("#btnNone").onclick = () => geoAll(false);
+  $("#btnHeat").onclick = () => geoView("heat");
+  $("#btnMarkers").onclick = () => geoView("markers");
+  document.querySelectorAll("#analysis button").forEach(b => b.onclick = () => { state.analysis = b.dataset.a; applyAnalysis(); });
+  document.querySelectorAll("#basemaps button").forEach(b => b.onclick = () => { state.base = b.dataset.base; applyBase(); });
+  $("#opt3d").onchange = (e) => setTerrain(e.target.checked);
+  $("#exag").oninput = (e) => {
+    state.exag = Number(e.target.value); $("#exagVal").textContent = fmt(state.exag, 1) + "×";
+    if (state.terrain) map.setTerrain({ source: "dem-3d", exaggeration: state.exag });
+    renderLegend();
+  };
+  $("#btnSerra").onclick = () => { if (!state.terrain) setTerrain(true);
+    $("#panel").classList.add("hidden");  // a cena 3D ocupa a tela; o painel volta pelo botão ☰
+    map.flyTo({ center: [-49.315, -26.345], zoom: 11.9, pitch: 72, bearing: -40, duration: 2400 }); };
+  $("#btnTop").onclick = () => map.fitBounds(GEO.bounds.urbano, { padding: fitPadding(), pitch: 0, bearing: 0, duration: 1200 });
+  $("#optBairros").onchange = (e) => { state.bairros = e.target.checked; applyOverlays(); };
+  $("#optMun").onchange = (e) => { state.mun = e.target.checked; applyOverlays(); };
+  $("#optInfra").onchange = (e) => { state.infra = e.target.checked; applyBase(); };
+  $("#optHill").onchange = (e) => { state.hill = e.target.checked; applyBase(); };
+  $("#optEsri").onchange = (e) => { state.esri = e.target.checked;
+    if (state.base === "mapa" || state.base === "relevo") { state.base = "satelite"; }
+    applyBase(); };
+  $("#goto").onchange = (e) => {
+    const v = e.target.value;
+    const box = v === "urbano" || v === "municipio" ? GEO.bounds[v] : (() => { const b = GEO.bairroList[+v.slice(2)].bbox; return [[b[0], b[1]], [b[2], b[3]]]; })();
+    map.fitBounds(box, { padding: fitPadding(), duration: 1200, pitch: state.terrain ? 55 : 0 });
+  };
+}
+</script>
+</body>
+</html>

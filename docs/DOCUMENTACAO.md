@@ -105,8 +105,8 @@ agregados por áreas dependem do recorte adotado, o Problema da Unidade de Área
 | Validação | Coordenadas ausentes ou fora da faixa → rejeitadas; pontos fora do polígono municipal (tolerância de 50 m) → rejeitados; nome/endereço ausentes → mantidos com sinalização. |
 | Deduplicação | Mesma categoria, distância ≤ 75 m e similaridade de nome ≥ 0,85; mantém-se o registro mais completo. |
 | Análise espacial | Junção ponto-em-polígono para atribuir bairro; área em km² na projeção UTM 22S; densidade = registros/km²; proximidade = distância em linha reta do ponto representativo do bairro à unidade mais próxima; índice de Clark-Evans por categoria. |
-| Visualização | Folium (Leaflet) com LayerControl, MarkerCluster, HeatMap, coropléticos e painel HTML/CSS/JS. |
-| Verificação | 31 testes automatizados (pytest); conferência da área calculada com a oficial; inspeção visual do mapa. |
+| Visualização | MapLibre GL JS: mapa vetorial (OpenFreeMap/OSM), satélite Sentinel-2 (EOxCloudless), relevo sombreado e hipsométrico e terreno 3D a partir de elevação real (SRTM/GMTED2010); ícones SVG por categoria, clusters, mapa de calor, coropléticos e painel HTML/CSS/JS. Versão clássica em Folium (Leaflet) como alternativa sem WebGL. |
+| Verificação | 35 testes automatizados (pytest); conferência da área calculada com a oficial; teste de interface automatizado no navegador (filtros, camadas, popups, clusters e 3D); inspeção visual do mapa. |
 
 Paradas de ônibus são exibidas no mapa, mas excluídas das contagens de estabelecimentos e do
 mapa de calor, para não distorcer a comparação entre bairros.
@@ -114,9 +114,10 @@ mapa de calor, para não distorcer a comparação entre bairros.
 ## 9. Tecnologias utilizadas
 
 Python 3.13; Pandas e NumPy (dados tabulares); GeoPandas, Shapely, PyProj e Pyogrio (dados
-espaciais, geometria, projeções, leitura de *shapefile*); Folium/Leaflet (mapa web); Geopy
-(geocodificação); Requests (HTTP); Jinja2, HTML, CSS e JavaScript (painel); pytest (testes);
-QGIS 3.44 (conferência visual); Git/GitHub (versionamento).
+espaciais, geometria, projeções, leitura de *shapefile*); MapLibre GL JS (mapa web vetorial e
+3D); Folium/Leaflet (versão clássica do mapa); Geopy (geocodificação); Requests (HTTP); Jinja2,
+HTML, CSS e JavaScript (interface); ícones Lucide (SVG); pytest (testes); QGIS 3.44 (conferência
+visual); Git/GitHub e GitHub Pages (versionamento e publicação).
 
 ## 10. Desenvolvimento do sistema
 
@@ -124,7 +125,8 @@ Arquitetura em pipeline, com módulos de responsabilidade única:
 
 ```
 coleta (IBGE, OSM) → data/raw → padronização/validação/deduplicação → data/processed
-   → junção espacial e indicadores → output/reports → mapa Folium → output/maps/geosbs.html
+   → junção espacial e indicadores → output/reports → mapa MapLibre → output/maps/geosbs.html
+                                                        (+ cópia em docs/ para o GitHub Pages)
 ```
 
 - `src/data_collection`: downloads com cache e novas tentativas; consulta Overpass gerada a
@@ -133,12 +135,34 @@ coleta (IBGE, OSM) → data/raw → padronização/validação/deduplicação �
   lat, lon, fonte, id_fonte, data_coleta, flags), validação e deduplicação.
 - `src/geospatial`: reprojeção, áreas, junção espacial e geocodificação.
 - `src/analytics`: indicadores, proximidade, padrões espaciais e relatórios.
-- `src/visualization`: mapa e painel.
+- `src/visualization`: `maplibre_builder.py` prepara os dados para exibição e o template
+  `maplibre.html` contém a interface; `map_builder.py` gera a versão clássica (Folium).
 
 Decisões relevantes: atribuir o bairro pela geometria, e não pelo endereço digitado; usar
 `representative_point()` em vez do centróide (que pode cair fora de polígonos irregulares);
 usar quantis nas classes dos coropléticos; cache de todas as respostas externas, para
 respeitar as políticas de uso das APIs públicas.
+
+Decisões da interface cartográfica:
+- **MapLibre GL JS** em vez de Leaflet: o Leaflet só exibe imagens prontas, enquanto o MapLibre
+  desenha mapas vetoriais e permite relevo 3D no mesmo mapa, sem chave de API e com licença
+  livre (BSD-3). A versão Leaflet foi mantida como alternativa.
+- **Fontes sem chave de API e com licença compatível com uso acadêmico**, conferidas nos sites
+  dos provedores em 17/11/2026: OpenFreeMap (gratuito, sem limite de acessos); EOxCloudless
+  (CC BY-NC-SA 4.0, uso acadêmico expressamente permitido); Terrain Tiles no AWS Open Data. A
+  CARTO e a MapTiler passaram a exigir chave e foram descartadas.
+- **Relevo real:** a elevação lida pelo mapa na Prefeitura é 843 m e no centro de Corupá, 66 m,
+  coerentes com as altitudes conhecidas. O 3D usa exagero vertical padrão de 1,5×, informado na
+  legenda. Edificações em 3D foram desligadas, pois o OSM quase não tem alturas para a cidade e
+  o estilo usaria valores padrão, ou seja, fictícios.
+- **Cores e ícones:** as 8 cores categóricas foram testadas com um validador de daltonismo. Com
+  8 categorias misturadas num mapa, nenhuma paleta é distinguível só pela cor (o pior par
+  restante, Segurança × Educação, tem ΔE 10,5 em visão normal); por isso cada categoria tem
+  também um ícone próprio, e "Outros" recebe um cinza neutro. Paradas de ônibus aparecem como
+  pontos pequenos a partir do zoom 14.
+- **Desempenho:** coordenadas arredondadas a 6 casas decimais e polígonos simplificados com
+  tolerância de 2 m, só para exibição; satélite e terreno 3D só são baixados quando ativados.
+  O arquivo do mapa caiu de 1,4 MB para cerca de 240 KB.
 
 ## 11. Resultados obtidos
 
@@ -288,6 +312,12 @@ do limite do bairro.
 - **Disponibilidade de APIs:** durante o desenvolvimento, as instâncias públicas do Overpass
   retornaram erros 502/504 em vários momentos. O sistema trata isso com novas tentativas,
   instâncias alternativas, cache e uma opção de importação manual.
+- **Mapa principal depende de WebGL e de internet:** mapa-base, satélite e relevo vêm de
+  serviços públicos. Sem WebGL, há a versão clássica (`geosbs_classico.html`).
+- **Resolução das fontes visuais:** o satélite padrão (Sentinel-2) tem 10 m por pixel; a opção
+  de alta resolução (Esri) tem termos de uso que remetem ao ecossistema ArcGIS. O modelo de
+  elevação tem resolução de ~30 m (SRTM), adequado para o relevo regional, não para detalhes de
+  lotes. A declividade do terreno não foi calculada nesta versão.
 
 ## 13. Conclusão
 
@@ -328,6 +358,18 @@ https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriai
 
 LONGLEY, P. A.; GOODCHILD, M. F.; MAGUIRE, D. J.; RHIND, D. W. *Geographic information
 science and systems*. 4. ed. Hoboken: Wiley, 2015.
+
+EOX IT SERVICES. *EOxCloudless: license & terms and conditions summary*. Disponível em:
+https://cloudless.eox.at/documentation/license. Acesso em: 17 nov. 2026.
+
+FARR, T. G. et al. The Shuttle Radar Topography Mission. *Reviews of Geophysics*, v. 45, n. 2,
+RG2004, 2007.
+
+MAPLIBRE. *MapLibre GL JS*. Versão 5.24.1. Disponível em: https://maplibre.org/. Acesso em:
+17 nov. 2026.
+
+MAPZEN. *Terrain Tiles*. Registry of Open Data on AWS. Disponível em:
+https://registry.opendata.aws/terrain-tiles/. Acesso em: 17 nov. 2026.
 
 OPENSHAW, S. *The modifiable areal unit problem*. Norwich: Geo Books, 1984. (Concepts and
 Techniques in Modern Geography, 38).

@@ -166,3 +166,66 @@ def test_build_map_smoke(tmp_path, overpass_file, municipio, bairros):
     html = out.read_text(encoding="utf-8")
     assert "geosbs-panel" in html and HEAT_LAYER in html
     assert ("Educação (1)" in html or "Educa\\u00e7\\u00e3o (1)" in html) and "Escola A" in html
+
+
+def _web_map(tmp_path, overpass_file, municipio, bairros):
+    import json
+    import re
+    from src.visualization.maplibre_builder import build_web_map
+    pois, *_ = _processed(overpass_file, municipio, bairros)
+    table = indicators.by_bairro(pois, bairros)
+    out = build_web_map(pois, municipio, table, indicators.summary(pois, table), tmp_path / "w.html")
+    html = out.read_text(encoding="utf-8")
+    data = json.loads(re.search(r"const GEO = (\{.*?\});\n", html, flags=re.S).group(1))
+    return pois, html, data
+
+
+def test_web_map_embeds_consistent_data(tmp_path, overpass_file, municipio, bairros):
+    pois, html, data = _web_map(tmp_path, overpass_file, municipio, bairros)
+    assert "maplibre-gl@" in html and 'id="map"' in html
+    # Todo registro do mapa aparece uma única vez: estabelecimentos + paradas.
+    assert len(data["pois"]["features"]) + len(data["paradas"]["features"]) == len(pois)
+    assert all(f["properties"]["estab"] for f in data["pois"]["features"])
+    assert sum(c["count"] for c in data["categories"]) == len(data["pois"]["features"])
+    assert {c["id"] for c in data["categories"]} >= {"saude", "educacao", "transporte"}
+    assert len(data["bairros"]["features"]) == len(bairros)
+    assert data["summary"]["total_estabelecimentos"] == len(data["pois"]["features"])
+
+
+def test_web_map_rounds_coordinates(tmp_path, overpass_file, municipio, bairros):
+    _, _, data = _web_map(tmp_path, overpass_file, municipio, bairros)
+    def walk(c):
+        if isinstance(c, (int, float)):
+            yield c
+        else:
+            for x in c:
+                yield from walk(x)
+    coords = [v for f in data["bairros"]["features"] + data["pois"]["features"]
+              for v in walk(f["geometry"]["coordinates"])]
+    assert coords and all(round(v, 6) == v for v in coords)
+
+
+def test_lucide_icons_exist_for_all_categories():
+    from src.data_collection.categories import load_categories
+    from src.visualization.maplibre_builder import ICONS_DIR, lucide_inner_svg
+    for c in load_categories():
+        assert (ICONS_DIR / f"{c.lucide}.svg").exists(), c.id
+        inner = lucide_inner_svg(c.lucide)
+        assert "<path" in inner or "<circle" in inner or "<rect" in inner
+        assert "<script" not in inner.lower()
+
+
+def test_web_map_escapes_html_in_names(tmp_path, municipio, bairros):
+    """Um nome malicioso no OSM não pode virar código na página."""
+    import json
+    from src.visualization.maplibre_builder import build_web_map
+    df = pd.DataFrame([{"id": "osm:node/1", "nome": "</script><script>alert(1)</script>",
+                        "categoria": "saude", "subcategoria": "amenity=clinic", "endereco": None,
+                        "lat": -26.255, "lon": -49.395, "fonte": "OpenStreetMap", "id_fonte": "node/1",
+                        "tipo_geometria": "node", "data_coleta": "2026-11-17", "flags": ""}])
+    pois, _, _ = validate(df, municipio)
+    pois = assign_bairro(pois, bairros)
+    table = indicators.by_bairro(pois, bairros)
+    html = build_web_map(pois, municipio, table, indicators.summary(pois, table),
+                         tmp_path / "x.html").read_text(encoding="utf-8")
+    assert "</script><script>alert(1)" not in html
