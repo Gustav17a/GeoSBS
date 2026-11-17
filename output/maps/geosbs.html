@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.1/dist/maplibre-gl.css">
 <style>
   :root {
-    --ui-bg: rgba(17, 24, 39, 0.86); --ui-bg-solid: #111827; --ui-line: rgba(148, 163, 184, 0.22);
+    --ui-bg: rgba(17, 24, 39, 0.94); --ui-bg-solid: #111827; --ui-line: rgba(148, 163, 184, 0.22);
     --ui-fg: #e5e7eb; --ui-muted: #9ca3af; --ui-accent: #22d3ee; --ui-accent-ink: #083344;
     --radius: 14px; --shadow: 0 12px 32px rgba(2, 6, 23, 0.35);
     --font: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", sans-serif;
@@ -17,7 +17,7 @@
   html, body { margin: 0; height: 100%; font: 13px/1.45 var(--font); color: var(--ui-fg); background: #0b1220; }
   #map { position: absolute; inset: 0; }
   button { font: inherit; color: inherit; }
-  .glass { background: var(--ui-bg); backdrop-filter: blur(10px) saturate(140%); -webkit-backdrop-filter: blur(10px) saturate(140%);
+  .glass { background: var(--ui-bg); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
            border: 1px solid var(--ui-line); border-radius: var(--radius); box-shadow: var(--shadow); }
   :focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
 
@@ -203,7 +203,7 @@
     <p class="note">11 registros ficam fora dos 20 bairros oficiais (área rural ou não abrangida).</p>
     <div class="foot">
       Dados: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">colaboradores do OpenStreetMap</a> (ODbL), coleta em 2026-11-17T17:41:17;
-      IBGE — Malha Municipal 2022 e Bairros do Censo 2022. Gerado em 17/11/2026 19:30.<br>
+      IBGE — Malha Municipal 2022 e Bairros do Censo 2022. Gerado em 17/11/2026 19:44.<br>
       <a href="geosbs_classico.html">Versão clássica (Leaflet)</a> · GeoSBS · UDESC
     </div>
   </section>
@@ -367,6 +367,8 @@ try {
   throw err;
 }
 window.geoMap = map;
+// Em telas estreitas o painel cobre metade do mapa: começa recolhido (botão ☰ abre).
+if (window.innerWidth <= 760) document.getElementById("panel").classList.add("hidden");
 map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
 map.addControl(new maplibregl.FullscreenControl(), "top-right");
 
@@ -580,7 +582,10 @@ function ensureSatellite() {
   if (map.getLayer("sat")) map.removeLayer("sat");
   if (map.getSource("sat")) map.removeSource("sat");
   map.addSource("sat", { type: "raster", tileSize: 256, ...SAT[key] });
-  map.addLayer({ id: "sat", type: "raster", source: "sat", paint: { "raster-fade-duration": 200 } }, G.fills[0]);
+  // Realce leve de exibição (a imagem de satélite costuma vir com névoa e pouco contraste).
+  // Não cria detalhe: só ajusta contraste e saturação dos pixels existentes.
+  map.addLayer({ id: "sat", type: "raster", source: "sat",
+    paint: { "raster-fade-duration": 200, "raster-contrast": 0.12, "raster-saturation": 0.1 } }, G.fills[0]);
   ensureSatellite.key = key;
 }
 
