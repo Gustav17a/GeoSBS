@@ -95,6 +95,7 @@
 
   /* Botões 3D (canto superior direito, abaixo da navegação) */
   .maplibregl-ctrl-group button.ctrl-3d { width: 29px; font-weight: 700; font-size: 11px; }
+  .maplibregl-ctrl-group button.ctrl-home { display: grid; place-items: center; color: #0f172a; }
   .maplibregl-ctrl-group button.ctrl-3d.on { background: var(--ui-accent); color: var(--ui-accent-ink); }
 
   /* Legenda */
@@ -158,8 +159,8 @@
 <header id="header" class="glass">
   <div class="brand"><b>Geo<span>SBS</span></b><small>Inteligência Geográfica de São Bento do Sul · SC</small></div>
   <select id="goto" aria-label="Ir para">
-    <option value="urbano">Área urbana</option>
     <option value="municipio">Município inteiro</option>
+    <option value="urbano">Área urbana (bairros)</option>
     <optgroup label="Bairros">
       {% for b in data.bairroList %}<option value="b:{{ loop.index0 }}">{{ b.nome }}</option>{% endfor %}
     </optgroup>
@@ -196,6 +197,9 @@
     </table>
     <p class="note"><b>Como ler:</b> o mapa mostra a distribuição dos <i>registros coletados</i> no OpenStreetMap,
       não a capacidade real dos serviços. Quantidade, densidade (por km²) e proximidade são medidas diferentes.</p>
+    <p class="note">O município tem <b>{{ "%.2f"|format(data.areaMunicipioKm2)|replace(".", ",") }} km²</b> (IBGE, Malha Municipal 2025).
+      Os {{ s.bairros_analisados }} bairros do IBGE cobrem {{ "%.1f"|format(data.areaBairrosKm2)|replace(".", ",") }} km², a área urbana;
+      o restante é área rural, sem bairro oficial, e aparece inteiro no mapa.</p>
     {% if s.fora_dos_bairros %}<p class="note">{{ s.fora_dos_bairros }} registros ficam fora dos {{ s.bairros_analisados }} bairros oficiais (área rural ou não abrangida).</p>{% endif %}
     <div class="foot">
       Dados: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">colaboradores do OpenStreetMap</a> (ODbL), coleta em {{ s.data_coleta or "—" }};
@@ -243,7 +247,7 @@
     <label class="opt"><input type="checkbox" id="optMun" checked><span>Limite municipal<small>IBGE, Malha 2022</small></span></label>
     <label class="opt"><input type="checkbox" id="optInfra" checked><span>Infraestrutura urbana<small>Ruas, ferrovias e edificações do OpenStreetMap</small></span></label>
     <label class="opt"><input type="checkbox" id="optHill" checked><span>Sombreamento do relevo<small>Calculado do modelo de elevação</small></span></label>
-    <label class="opt"><input type="checkbox" id="optEsri"><span>Satélite em alta resolução (Esri)<small>Padrão: Sentinel-2 (EOxCloudless, 10 m)</small></span></label>
+    <label class="opt"><input type="checkbox" id="optEsri"><span>Satélite em alta resolução (Esri, 0,3–0,5 m)<small id="esriNote">Imagens de 2023 a 2025. Desligado: Sentinel-2 (10 m, licença aberta)</small></span></label>
   </section>
 </aside>
 
@@ -266,11 +270,13 @@ const CATS = Object.fromEntries(GEO.categories.map(c => [c.id, c]));
 const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 const DEM_TILES = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
 const DEM_ATTR = '<a href="https://registry.opendata.aws/terrain-tiles/" target="_blank">Terrain Tiles</a>: SRTM e GMTED2010, cortesia do U.S. Geological Survey';
+const ESRI_KEY = {{ esri_key|tojson }};
 const SAT = {
   eox: { tiles: ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg"], maxzoom: 15,
          attribution: '<a href="https://cloudless.eox.at" target="_blank">EOxCloudless 2024</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024), CC BY-NC-SA 4.0' },
-  esri: { tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], maxzoom: 19,
-          attribution: "Imagens © Esri, Maxar, Earthstar Geographics e comunidade de usuários GIS" },
+  // Esri World Imagery pela ArcGIS Location Platform (exige chave; ver config/settings.py).
+  esri: { tiles: ["https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=" + encodeURIComponent(ESRI_KEY)],
+          maxzoom: 19, attribution: "Imagens: Esri, Vantor, Earthstar Geographics e comunidade de usuários GIS" },
 };
 
 /* ---------- utilidades ---------- */
@@ -286,7 +292,7 @@ const iconSvg = (cat, size, stroke = "#fff") =>
 const state = {
   active: new Set(GEO.categories.map(c => c.id)),
   base: "mapa", analysis: "none", terrain: false, exag: 1.5,
-  bairros: true, mun: true, infra: true, hill: true, esri: false,
+  bairros: true, mun: true, infra: true, hill: true, esri: !!ESRI_KEY,
 };
 
 /* ---------- mapa ---------- */
@@ -294,7 +300,8 @@ let map;
 try {
   map = new maplibregl.Map({
     container: "map", style: STYLE_URL,
-    bounds: GEO.bounds.urbano, fitBoundsOptions: { padding: fitPadding() },
+    bounds: GEO.bounds.municipio, fitBoundsOptions: { padding: fitPadding() },
+    maxBounds: GEO.bounds.max,  // mantém a navegação em São Bento do Sul e arredores
     maxPitch: 80, attributionControl: false, canvasContextAttributes: { antialias: true },
   });
 } catch (err) {
@@ -308,8 +315,11 @@ map.addControl(new maplibregl.FullscreenControl(), "top-right");
 class TerrainToggle {
   onAdd() {
     this._c = document.createElement("div"); this._c.className = "maplibregl-ctrl maplibregl-ctrl-group";
-    this._c.innerHTML = '<button class="ctrl-3d" type="button" title="Relevo em 3D" aria-label="Alternar relevo 3D">3D</button>';
-    this._c.firstChild.onclick = () => setTerrain(!state.terrain);
+    this._c.innerHTML = '<button class="ctrl-home" type="button" title="Ver todo o município" aria-label="Enquadrar todo o município de São Bento do Sul">'
+      + '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg></button>'
+      + '<button class="ctrl-3d" type="button" title="Relevo em 3D" aria-label="Alternar relevo 3D">3D</button>';
+    this._c.querySelector(".ctrl-home").onclick = () => goMunicipio();
+    this._c.querySelector(".ctrl-3d").onclick = () => setTerrain(!state.terrain);
     return this._c;
   }
   onRemove() { this._c.remove(); }
@@ -406,8 +416,13 @@ function addDataLayers() {
              "line-width": ["case", ["boolean", ["feature-state", "hover"], false], 3, 1.2],
              "line-opacity": 0.85 } }, FIRST_LABEL);
 
+  // Véu sobre os municípios vizinhos: continuam visíveis como contexto, sem o mesmo destaque.
+  map.addSource("mask", { type: "geojson", data: GEO.mask });
+  map.addLayer({ id: "mask", type: "fill", source: "mask", paint: { "fill-color": "#f8fafc", "fill-opacity": 0.6 } });
+  map.addLayer({ id: "municipio-halo", type: "line", source: "municipio",
+    paint: { "line-color": "#ffffff", "line-width": 6, "line-opacity": 0.85, "line-blur": 1 } });
   map.addLayer({ id: "municipio-line", type: "line", source: "municipio",
-    paint: { "line-color": "#0f172a", "line-width": 2.4, "line-dasharray": [3, 2], "line-opacity": 0.85 } });
+    paint: { "line-color": "#0f172a", "line-width": 2.4, "line-dasharray": [3, 2], "line-opacity": 0.9 } });
 
   // Mapa de calor: todos os estabelecimentos (não inclui paradas de ônibus). Escala sequencial amarelo→vermelho.
   map.addLayer({ id: "heat", type: "heatmap", source: "heat", layout: { visibility: "none" },
@@ -530,6 +545,9 @@ function applyBase() {
     map.setPaintProperty(id, "line-opacity", b === "hibrido" ? 0.5 : ROAD_OPACITY[id]);
   }
   trySet("municipio-line", "line-color", sat ? "#ffffff" : "#0f172a");
+  trySet("municipio-halo", "line-color", sat ? "#0f172a" : "#ffffff");
+  trySet("mask", "fill-color", sat ? "#0b1220" : "#f8fafc");
+  trySet("mask", "fill-opacity", sat ? 0.5 : b === "relevo" ? 0.5 : 0.6);
   trySet("bairros-line", "line-color", sat ? ["case", ["boolean", ["feature-state", "hover"], false], "#ffffff", "#a5f3fc"]
                                            : ["case", ["boolean", ["feature-state", "hover"], false], "#0e7490", "#0891b2"]);
   document.querySelectorAll("#basemaps button").forEach(btn => btn.classList.toggle("on", btn.dataset.base === b));
@@ -573,7 +591,9 @@ function renderLegend() {
   }
   if (state.terrain) parts.push(`<div class="sub"><b style="color:#fff">Relevo 3D</b> com exagero vertical de ${fmt(state.exag, 1)}×.</div>`);
   if (state.base === "relevo") parts.push(`<div class="ttl" style="margin-top:6px">Altitude (m)</div><div class="grad" style="background:linear-gradient(90deg,#3f7f4f 0%,#79a85f 13%,#b5c47c 30%,#e6dc9c 47%,#ecc98a 55%,#d9a573 61%,#bb8462 68%,#93705f 80%)"></div><div class="ends"><span>0</span><span>450</span><span>820</span><span>1.020</span><span>1.200+</span></div><div class="sub">Mais cores entre 700 e 1.100 m, faixa do planalto de São Bento do Sul.</div>`);
-  if ((state.base === "satelite" || state.base === "hibrido") && !state.esri) parts.push(`<div class="sub">Satélite Sentinel-2 (10 m por pixel): bom para matas e relevo. Para ver ruas e telhados, ative <b>Satélite em alta resolução</b> em Camadas.</div>`);
+  if ((state.base === "satelite" || state.base === "hibrido") && !state.esri) parts.push(ESRI_KEY
+    ? `<div class="sub">Satélite Sentinel-2 (10 m por pixel): bom para matas e relevo. Para ver ruas e telhados, ative <b>Satélite em alta resolução</b> em Camadas.</div>`
+    : `<div class="sub">Satélite Sentinel-2 (10 m por pixel). A alta resolução (Esri) não está configurada nesta versão do mapa.</div>`);
   L.innerHTML = parts.join('<hr style="border:0;border-top:1px solid var(--ui-line);margin:8px 0">');
   L.hidden = parts.length === 0;
 }
@@ -684,6 +704,11 @@ function setTerrain(on) {
 }
 
 /* ---------- interface ---------- */
+function goMunicipio() {
+  $("#goto").value = "municipio";
+  map.fitBounds(GEO.bounds.municipio, { padding: fitPadding(), pitch: 0, bearing: 0, duration: 1200 });
+}
+
 function bindUI() {
   document.querySelectorAll(".tabs button").forEach(btn => btn.onclick = () => {
     document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b === btn));
@@ -710,11 +735,13 @@ function bindUI() {
   $("#btnSerra").onclick = () => { if (!state.terrain) setTerrain(true);
     $("#panel").classList.add("hidden");  // a cena 3D ocupa a tela; o painel volta pelo botão ☰
     map.flyTo({ center: [-49.315, -26.345], zoom: 11.9, pitch: 72, bearing: -40, duration: 2400 }); };
-  $("#btnTop").onclick = () => map.fitBounds(GEO.bounds.urbano, { padding: fitPadding(), pitch: 0, bearing: 0, duration: 1200 });
+  $("#btnTop").onclick = () => goMunicipio();
   $("#optBairros").onchange = (e) => { state.bairros = e.target.checked; applyOverlays(); };
   $("#optMun").onchange = (e) => { state.mun = e.target.checked; applyOverlays(); };
   $("#optInfra").onchange = (e) => { state.infra = e.target.checked; applyBase(); };
   $("#optHill").onchange = (e) => { state.hill = e.target.checked; applyBase(); };
+  if (!ESRI_KEY) { $("#optEsri").disabled = true; $("#esriNote").textContent = "Indisponível: chave da ArcGIS Location Platform não configurada (ver README)."; }
+  $("#optEsri").checked = state.esri;
   $("#optEsri").onchange = (e) => { state.esri = e.target.checked;
     if (state.base === "mapa" || state.base === "relevo") { state.base = "satelite"; }
     applyBase(); };

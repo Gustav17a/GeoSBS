@@ -95,6 +95,23 @@ def _bounds(gdf: gpd.GeoDataFrame) -> list[list[float]]:
     return [[round(minx, 5), round(miny, 5)], [round(maxx, 5), round(maxy, 5)]]
 
 
+def focus_geometry(municipio: gpd.GeoDataFrame) -> tuple[dict, list[list[float]]]:
+    """Máscara (área de navegação menos o município) e limites de navegação do mapa.
+
+    A máscara cobre os municípios vizinhos com um véu discreto, mantendo-os como
+    contexto; os limites impedem que o usuário se afaste da região de interesse.
+    """
+    mun = municipio.to_crs(settings.CRS_WEB)
+    minx, miny, maxx, maxy = mun.total_bounds
+    mx, my = (maxx - minx) * settings.MAP_NAV_MARGIN, (maxy - miny) * settings.MAP_NAV_MARGIN
+    nav = [[round(minx - mx, 5), round(miny - my, 5)], [round(maxx + mx, 5), round(maxy + my, 5)]]
+    outer = shapely.geometry.box(minx - 4 * mx, miny - 4 * my, maxx + 4 * mx, maxy + 4 * my)
+    hole = display_polygons(municipio).geometry.union_all()
+    mask = _round_geom(outer.difference(hole))
+    return ({"type": "FeatureCollection", "features": [
+        {"type": "Feature", "geometry": shapely.geometry.mapping(mask), "properties": {}}]}, nav)
+
+
 def build_data(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame,
                table: gpd.GeoDataFrame, summary: dict) -> dict:
     """Reúne tudo o que o mapa precisa num único dicionário serializável."""
@@ -124,6 +141,7 @@ def build_data(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame,
     counts = est["categoria"].value_counts()
     n_stops = int(not_est.sum())
 
+    mask, nav_bounds = focus_geometry(municipio)
     count_breaks = class_breaks(table["total"].to_numpy())
     dens_breaks = class_breaks(table["densidade_km2"].to_numpy())
 
@@ -141,7 +159,10 @@ def build_data(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame,
         "municipio": _features(display_polygons(municipio[["NM_MUN", "geometry"]]),
                                {"nome": "NM_MUN"}),
         "bairroList": bairro_list,
-        "bounds": {"urbano": _bounds(table), "municipio": _bounds(municipio)},
+        "bounds": {"urbano": _bounds(table), "municipio": _bounds(municipio), "max": nav_bounds},
+        "mask": mask,
+        "areaMunicipioKm2": round(float(municipio.to_crs(settings.CRS_METRIC).area.sum()) / 1e6, 2),
+        "areaBairrosKm2": round(float(table["area_km2"].sum()), 1),
         "choropleth": {
             "colors": SEQ_COLORS,
             "total": {"breaks": count_breaks, "bins": legend_bins(count_breaks, 0),
@@ -156,7 +177,9 @@ def build_data(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame,
 
 
 def build_web_map(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame,
-                  table: gpd.GeoDataFrame, summary: dict, output: Path) -> Path:
+                  table: gpd.GeoDataFrame, summary: dict, output: Path,
+                  esri_key: str | None = None) -> Path:
+    """Gera o HTML. `esri_key=None` usa a chave configurada (settings.ESRI_API_KEY)."""
     data = build_data(pois, municipio, table, summary)
     env = Environment(loader=FileSystemLoader(settings.TEMPLATES_DIR),
                       autoescape=select_autoescape(["html"]))
@@ -166,6 +189,7 @@ def build_web_map(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame,
         categories=data["categories"],
         maplibre_js=MAPLIBRE_JS,
         maplibre_css=MAPLIBRE_CSS,
+        esri_key=settings.ESRI_API_KEY if esri_key is None else esri_key,
         generated_at=datetime.now().strftime("%d/%m/%Y %H:%M"),
     )
     output.parent.mkdir(parents=True, exist_ok=True)

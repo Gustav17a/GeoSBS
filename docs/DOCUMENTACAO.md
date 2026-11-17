@@ -20,7 +20,7 @@ Os Sistemas de Informação Geográfica (SIG) permitem armazenar, relacionar e a
 têm uma componente de localização. Assim, uma lista de endereços passa a ser informação sobre
 o território.
 
-O GeoSBS aplica esses conceitos a São Bento do Sul (SC), município de 495,772 km² e 83.277
+O GeoSBS aplica esses conceitos a São Bento do Sul (SC), município de 495,001 km² (IBGE, 2025) e 83.277
 habitantes (IBGE, Censo 2022). O sistema integra dados oficiais do IBGE (limite municipal e
 bairros) a dados colaborativos do OpenStreetMap (estabelecimentos e equipamentos urbanos). Ele
 valida e padroniza os registros, atribui cada ponto a um bairro por operação espacial e gera um
@@ -100,13 +100,13 @@ agregados por áreas dependem do recorte adotado, o Problema da Unidade de Área
 
 | Etapa | Procedimento |
 |---|---|
-| Aquisição | Download da Malha Municipal 2022 e da Malha de Bairros do Censo 2022 (IBGE, *shapefile*); consulta única à Overpass API do OSM pelo retângulo envolvente do município, salva com data e hora em `data/raw/`. |
+| Aquisição | Download da Malha Municipal 2025 e da Malha de Bairros do Censo 2022 (IBGE, *shapefile*); consulta única à Overpass API do OSM pelo retângulo envolvente do município, salva com data e hora em `data/raw/`. |
 | Classificação | Regras de tags OSM → 8 categorias (`config/categories.json`), com condições opcionais por regra (ex.: centro comunitário só é serviço público com operador público); elementos que não casam são descartados e contados no relatório de qualidade. |
 | Validação | Coordenadas ausentes ou fora da faixa → rejeitadas; pontos fora do polígono municipal (tolerância de 50 m) → rejeitados; nome/endereço ausentes → mantidos com sinalização. |
 | Deduplicação | Mesma categoria, distância ≤ 75 m e similaridade de nome ≥ 0,85; mantém-se o registro mais completo. |
 | Análise espacial | Junção ponto-em-polígono para atribuir bairro; área em km² na projeção UTM 22S; densidade = registros/km²; proximidade = distância em linha reta do ponto representativo do bairro à unidade mais próxima; índice de Clark-Evans por categoria. |
-| Visualização | MapLibre GL JS: mapa vetorial (OpenFreeMap/OSM), satélite Sentinel-2 (EOxCloudless), relevo sombreado e hipsométrico e terreno 3D a partir de elevação real (SRTM/GMTED2010); ícones SVG por categoria, clusters, mapa de calor, coropléticos e painel HTML/CSS/JS. Versão clássica em Folium (Leaflet) como alternativa sem WebGL. |
-| Verificação | 35 testes automatizados (pytest); conferência da área calculada com a oficial; teste de interface automatizado no navegador (filtros, camadas, popups, clusters e 3D); inspeção visual do mapa. |
+| Visualização | MapLibre GL JS: mapa vetorial (OpenFreeMap/OSM), satélite Esri World Imagery (alta resolução, com chave) ou Sentinel-2 (EOxCloudless), relevo sombreado e hipsométrico e terreno 3D a partir de elevação real (SRTM/GMTED2010); ícones SVG por categoria, clusters, mapa de calor, coropléticos e painel HTML/CSS/JS. Versão clássica em Folium (Leaflet) como alternativa sem WebGL. |
+| Verificação | 38 testes automatizados (pytest); conferência da área calculada com a oficial; teste de interface automatizado no navegador (filtros, camadas, popups, clusters e 3D); inspeção visual do mapa. |
 
 Paradas de ônibus são exibidas no mapa, mas excluídas das contagens de estabelecimentos e do
 mapa de calor, para não distorcer a comparação entre bairros.
@@ -147,10 +147,19 @@ Decisões da interface cartográfica:
 - **MapLibre GL JS** em vez de Leaflet: o Leaflet só exibe imagens prontas, enquanto o MapLibre
   desenha mapas vetoriais e permite relevo 3D no mesmo mapa, sem chave de API e com licença
   livre (BSD-3). A versão Leaflet foi mantida como alternativa.
-- **Fontes sem chave de API e com licença compatível com uso acadêmico**, conferidas nos sites
-  dos provedores em 17/11/2026: OpenFreeMap (gratuito, sem limite de acessos); EOxCloudless
-  (CC BY-NC-SA 4.0, uso acadêmico expressamente permitido); Terrain Tiles no AWS Open Data. A
-  CARTO e a MapTiler passaram a exigir chave e foram descartadas.
+- **Fontes com licença compatível com uso acadêmico**, conferidas nos sites dos provedores em
+  17/11/2026: OpenFreeMap (gratuito, sem limite de acessos); Terrain Tiles no AWS Open Data;
+  satélite Esri World Imagery pela ArcGIS Location Platform (conta gratuita, 2 milhões de
+  tiles/mês) e, como alternativa aberta, EOxCloudless (CC BY-NC-SA 4.0).
+- **Nitidez do satélite:** o Sentinel-2 tem 10 m por pixel; num zoom de rua cada pixel da
+  imagem ocupa vários pixels da tela, o que explica o aspecto borrado. Segundo os metadados do
+  próprio serviço, a Esri tem em SBS imagens de 0,34 a 0,5 m (Vantor, 2023 a 2025), inclusive
+  na área rural. As ortofotos oficiais do Estado (SDS, 0,39 m) são de 2010–2012 e não têm
+  serviço web confirmado; MapTiler, Mapbox e Google exigem chave e não foram avaliadas na região.
+- **Foco no município:** o mapa abre enquadrado no município inteiro (antes, só na área dos
+  bairros, que cobre 17% do território, e a área rural do sul e do leste ficava fora da tela),
+  limita a navegação a uma margem de 35% em volta do município e cobre os vizinhos com um véu
+  discreto.
 - **Relevo real:** a elevação lida pelo mapa na Prefeitura é 843 m e no centro de Corupá, 66 m,
   coerentes com as altitudes conhecidas. O 3D usa exagero vertical padrão de 1,5×, informado na
   legenda. Edificações em 3D foram desligadas, pois o OSM quase não tem alturas para a cidade e
@@ -168,8 +177,13 @@ Decisões da interface cartográfica:
 
 **Verificações com dados reais (IBGE):**
 - A malha de bairros do Censo 2022 contém **20 bairros** para São Bento do Sul.
-- A área do município calculada na projeção UTM 22S é **495,71 km²**, contra 495,772 km²
-  oficiais (diferença de 0,01%), o que confirma a escolha da projeção.
+- A área do município calculada na projeção UTM 22S é **494,94 km²**, contra 495,001 km²
+  oficiais (Malha Municipal 2025; diferença de 0,01%), o que confirma a escolha da projeção.
+- O limite de 2025 substituiu o de 2022, que o IBGE revisou na divisa com Campo Alegre (1,04 km²
+  passaram a Campo Alegre e 0,30 km² passaram a SBS; afastamento máximo entre os traçados de
+  515 m). Nenhum dos registros coletados mudou de lado e nenhum bairro ficou cortado.
+- O polígono municipal é uma área única, sem buracos, e chega íntegro ao mapa (a simplificação
+  para exibição altera 0,0003% da área).
 - Os 20 bairros somam **82,1 km²** (cerca de 17% do município). O restante é área rural, sem
   bairro oficial, e os pontos ali são contabilizados como "fora dos bairros oficiais".
 
@@ -314,8 +328,9 @@ do limite do bairro.
   instâncias alternativas, cache e uma opção de importação manual.
 - **Mapa principal depende de WebGL e de internet:** mapa-base, satélite e relevo vêm de
   serviços públicos. Sem WebGL, há a versão clássica (`geosbs_classico.html`).
-- **Resolução das fontes visuais:** o satélite padrão (Sentinel-2) tem 10 m por pixel; a opção
-  de alta resolução (Esri) tem termos de uso que remetem ao ecossistema ArcGIS. O modelo de
+- **Resolução das fontes visuais:** sem a chave da Esri, o satélite é o Sentinel-2 (10 m por
+  pixel); com a chave, a Esri cobre SBS com 0,34–0,5 m, mas a chave fica visível no HTML do
+  site estático e precisa ser restrita aos domínios do projeto. O modelo de
   elevação tem resolução de ~30 m (SRTM), adequado para o relevo regional, não para detalhes de
   lotes. A declividade do terreno não foi calculada nesta versão.
 
@@ -349,8 +364,12 @@ HAKLAY, M. How good is volunteered geographical information? A comparative study
 OpenStreetMap and Ordnance Survey datasets. *Environment and Planning B: Planning and Design*,
 v. 37, n. 4, p. 682–703, 2010.
 
-IBGE. *Malha Municipal 2022*. Rio de Janeiro: IBGE, 2023. Disponível em:
-https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais.html.
+IBGE. *Malha Municipal 2025*. Rio de Janeiro: IBGE. Disponível em:
+https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais.html. Acesso
+em: 17 nov. 2026.
+
+ESRI. *World Imagery* (ArcGIS Location Platform). Disponível em:
+https://www.arcgis.com/home/item.html?id=10df2279f9684e4a9f6a7f08febac2a9. Acesso em: 17 nov. 2026.
 
 IBGE. *Censo Demográfico 2022: Malha de Setores Censitários — Bairros*. Rio de Janeiro: IBGE,
 2024. Disponível em:
