@@ -33,6 +33,26 @@ def test_classify(tags, expected):
     assert classify(tags)[0] == expected
 
 
+@pytest.mark.parametrize("tags,expected", [
+    # Centro comunitário só é serviço público com operador público; senão, "outros".
+    ({"amenity": "community_centre", "operator:type": "public"}, "servicos_publicos"),
+    ({"amenity": "community_centre"}, "outros"),
+    ({"amenity": "community_centre", "community_centre": "events_venue"}, "outros"),
+    # Jardim só entra em lazer se tiver nome; sem nome, é descartado.
+    ({"leisure": "garden", "name": "Jardim Botânico"}, "lazer"),
+    ({"leisure": "garden"}, None),
+    ({"leisure": "garden", "name": "  "}, None),
+])
+def test_classify_conditions(tags, expected):
+    result = classify(tags)
+    assert (result[0] if result else None) == expected
+
+
+def test_normalize_counts_discarded(overpass_file):
+    df = osm_to_dataframe(overpass_file)
+    assert df.attrs["descartados_pelas_regras"] == df.attrs["elementos_osm"] - len(df) == 1
+
+
 def test_classify_unknown():
     assert classify({"shop": "bakery"}) is None
 

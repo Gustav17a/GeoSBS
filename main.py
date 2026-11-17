@@ -41,11 +41,14 @@ def run(refresh_osm: bool, refresh_ibge: bool, open_browser: bool,
 
     log.info("3/6 Padronizando, validando e removendo duplicatas")
     df = osm_to_dataframe(raw_file)
+    collection = {"elementos_osm": df.attrs["elementos_osm"],
+                  "descartados_pelas_regras": df.attrs["descartados_pelas_regras"]}
     manual = load_manual_points()
     if not manual.empty:
         log.info("    + %d pontos do cadastro manual", len(manual))
         df = pd.concat([df, manual], ignore_index=True)
     pois, rejected, quality = validate(df, municipio)
+    quality = {**collection, **quality}
     if reverse_geocode:
         pois = fill_missing_addresses(pois)
         filled = pois["endereco"].notna() & pois["flags"].str.contains("sem_endereco")

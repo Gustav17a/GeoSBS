@@ -1,5 +1,5 @@
 {
-  "_comentario": "Regras de classificação das tags do OpenStreetMap. A ordem importa: o primeiro grupo que casar define a categoria. 'color' é uma das cores aceitas por folium.Icon; 'hex' é usada na legenda e nos gráficos; 'icon' é um ícone Font Awesome 6.",
+  "_comentario": "Regras de classificação das tags do OpenStreetMap. A ordem importa: o primeiro grupo que casar define a categoria. 'conditions' exige tags extras para uma regra chave=valor ('*' = qualquer valor); se não forem atendidas, testa-se o grupo seguinte. 'color' é uma das cores aceitas por folium.Icon; 'hex' é usada na legenda e nos gráficos; 'icon' é um ícone Font Awesome 6.",
   "categories": [
     {
       "id": "farmacias",
@@ -41,13 +41,19 @@
       "rules": {
         "amenity": ["townhall", "courthouse", "post_office", "library", "community_centre", "social_facility"],
         "office": ["government"]
+      },
+      "conditions": {
+        "amenity=community_centre": {"operator:type": ["public", "government"]}
       }
     },
     {
       "id": "lazer",
       "label": "Lazer e espaços públicos",
       "color": "darkgreen", "hex": "#1b5e20", "icon": "tree",
-      "rules": {"leisure": ["park", "playground", "sports_centre", "stadium", "garden"]}
+      "rules": {"leisure": ["park", "playground", "sports_centre", "stadium", "garden"]},
+      "conditions": {
+        "leisure=garden": {"name": ["*"]}
+      }
     },
     {
       "id": "outros",
@@ -55,7 +61,7 @@
       "color": "cadetblue", "hex": "#5f9ea0", "icon": "star",
       "rules": {
         "tourism": ["museum", "attraction", "viewpoint", "gallery"],
-        "amenity": ["theatre", "arts_centre", "cinema", "marketplace"]
+        "amenity": ["theatre", "arts_centre", "cinema", "marketplace", "community_centre"]
       }
     }
   ]

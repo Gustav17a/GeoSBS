@@ -1,7 +1,7 @@
 {
   "indicadores": {
-    "total_estabelecimentos": 131,
-    "total_registros_mapa": 177,
+    "total_estabelecimentos": 126,
+    "total_registros_mapa": 172,
     "paradas_onibus": 46,
     "por_categoria": {
       "Farmácias": 7,
@@ -9,9 +9,9 @@
       "Educação": 26,
       "Segurança pública": 4,
       "Transporte": 5,
-      "Serviços públicos": 22,
-      "Lazer e espaços públicos": 39,
-      "Outros pontos de interesse": 14
+      "Serviços públicos": 17,
+      "Lazer e espaços públicos": 34,
+      "Outros pontos de interesse": 19
     },
     "categoria_mais_registros": "Lazer e espaços públicos",
     "bairros_analisados": 20,
@@ -22,10 +22,10 @@
       "Alpino",
       "Rio Vermelho Povoado"
     ],
-    "fora_dos_bairros": 12,
+    "fora_dos_bairros": 11,
     "bairro_maior_quantidade": {
       "bairro": "Centro",
-      "valor": 46
+      "valor": 44
     },
     "bairro_menor_quantidade": {
       "bairro": "Industrial Sudoeste",
@@ -33,7 +33,7 @@
     },
     "bairro_maior_densidade": {
       "bairro": "Centro",
-      "valor": 15.45
+      "valor": 14.78
     },
     "bairro_menor_densidade": {
       "bairro": "Rio Vermelho Povoado",
@@ -42,12 +42,14 @@
     "data_coleta": "2026-11-17T17:41:17"
   },
   "qualidade": {
-    "registros_recebidos": 235,
+    "elementos_osm": 235,
+    "descartados_pelas_regras": 17,
+    "registros_recebidos": 218,
     "coordenada_invalida": 0,
-    "fora_do_municipio": 57,
-    "sem_nome": 77,
-    "sem_endereco": 137,
+    "fora_do_municipio": 45,
+    "sem_nome": 72,
+    "sem_endereco": 132,
     "duplicatas_removidas": 1,
-    "registros_finais": 177
+    "registros_finais": 172
   }
 }
