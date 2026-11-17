@@ -69,4 +69,7 @@ NOT_ESTABLISHMENT_SUBCATEGORIES = {"highway=bus_stop"}
 PROXIMITY_CATEGORIES = ["saude", "educacao", "farmacias"]
 
 # --- Mapa ---------------------------------------------------------------------
-MAP_OUTPUT_FILE = MAPS_DIR / "geosbs.html"
+MAP_OUTPUT_FILE = MAPS_DIR / "geosbs.html"            # mapa principal (MapLibre GL JS)
+MAP_CLASSIC_FILE = MAPS_DIR / "geosbs_classico.html"  # versão Leaflet/Folium (alternativa sem WebGL)
+# Cópia publicada no GitHub Pages (pasta docs/). Atualizada a cada execução.
+PAGES_DIR = ROOT_DIR / "docs"

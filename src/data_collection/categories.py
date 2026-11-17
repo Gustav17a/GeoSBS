@@ -16,6 +16,8 @@ class Category:
     hex: str
     icon: str
     rules: dict[str, tuple[str, ...]]
+    # Ícone Lucide (SVG) usado no mapa principal; vazio = ícone genérico.
+    lucide: str = ""
     # Condições extras para uma regra "chave=valor": {tag: valores aceitos}.
     # "*" aceita qualquer valor (a tag só precisa existir).
     conditions: dict[str, dict[str, tuple[str, ...]]] = field(default_factory=dict)
@@ -32,6 +34,7 @@ def load_categories() -> tuple[Category, ...]:
             color=c["color"],
             hex=c["hex"],
             icon=c["icon"],
+            lucide=c.get("lucide", ""),
             rules={k: tuple(v) for k, v in c["rules"].items()},
             conditions={
                 rule: {tag: tuple(vals) for tag, vals in req.items()}

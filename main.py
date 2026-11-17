@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import shutil
 import sys
 import webbrowser
 
@@ -24,6 +25,7 @@ from src.data_processing.validate import validate
 from src.geospatial.geocoding import fill_missing_addresses, load_manual_points
 from src.geospatial.spatial import assign_bairro
 from src.visualization.map_builder import build_map
+from src.visualization.maplibre_builder import build_web_map
 
 log = logging.getLogger("geosbs")
 
@@ -75,9 +77,16 @@ def run(refresh_osm: bool, refresh_ibge: bool, open_browser: bool,
     for path in write_reports(summary, table, proximity, patterns, quality, duplicates, rejected):
         log.info("    Relatório: %s", path.relative_to(settings.ROOT_DIR))
 
-    log.info("6/6 Gerando mapa interativo")
-    out = build_map(pois, municipio, table, summary, settings.MAP_OUTPUT_FILE)
-    log.info("Mapa salvo em %s", out)
+    log.info("6/6 Gerando mapas interativos")
+    out = build_web_map(pois, municipio, table, summary, settings.MAP_OUTPUT_FILE)
+    classic = build_map(pois, municipio, table, summary, settings.MAP_CLASSIC_FILE)
+    log.info("Mapa principal (MapLibre): %s", out)
+    log.info("Mapa clássico (Leaflet):   %s", classic)
+    # Mantém a versão publicada no GitHub Pages igual à recém-gerada.
+    if settings.PAGES_DIR.exists():
+        shutil.copyfile(out, settings.PAGES_DIR / "index.html")
+        shutil.copyfile(classic, settings.PAGES_DIR / classic.name)
+        log.info("    Cópias atualizadas em %s", settings.PAGES_DIR.relative_to(settings.ROOT_DIR))
     log.info("Resumo: %d estabelecimentos, %d bairros com registros, categoria líder: %s",
              summary["total_estabelecimentos"], summary["bairros_com_registros"],
              summary["categoria_mais_registros"])
