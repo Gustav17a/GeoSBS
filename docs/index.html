@@ -94,6 +94,8 @@
   .t-rel { background: linear-gradient(160deg, #e8dcc0, #b9c99a 45%, #7f9f6c 70%, #57744c); }
 
   /* Botões 3D (canto superior direito, abaixo da navegação) */
+  /* Botões dos controles do mapa: texto escuro sobre o fundo branco (o body usa texto claro). */
+  .maplibregl-ctrl-group button { color: #0f172a; }
   .maplibregl-ctrl-group button.ctrl-3d { width: 29px; font-weight: 700; font-size: 11px; }
   .maplibregl-ctrl-group button.ctrl-home { display: grid; place-items: center; color: #0f172a; }
   .maplibregl-ctrl-group button.ctrl-3d.on { background: var(--ui-accent); color: var(--ui-accent-ink); }
@@ -203,7 +205,7 @@
     <p class="note">11 registros ficam fora dos 20 bairros oficiais (área rural ou não abrangida).</p>
     <div class="foot">
       Dados: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">colaboradores do OpenStreetMap</a> (ODbL), coleta em 2026-11-17T17:41:17;
-      IBGE — Malha Municipal 2022 e Bairros do Censo 2022. Gerado em 17/11/2026 19:44.<br>
+      IBGE — Malha Municipal 2022 e Bairros do Censo 2022. Gerado em 17/11/2026 20:11.<br>
       <a href="geosbs_classico.html">Versão clássica (Leaflet)</a> · GeoSBS · UDESC
     </div>
   </section>
@@ -332,7 +334,8 @@ const SAT = {
          attribution: '<a href="https://cloudless.eox.at" target="_blank">EOxCloudless 2024</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024), CC BY-NC-SA 4.0' },
   // Esri World Imagery pela ArcGIS Location Platform (exige chave; ver config/settings.py).
   esri: { tiles: ["https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=" + encodeURIComponent(ESRI_KEY)],
-          maxzoom: 19, attribution: "Imagens: Esri, Vantor, Earthstar Geographics e comunidade de usuários GIS" },
+          // Em SBS a Esri tem tiles até o nível 18 (o 19 responde 404); acima disso o MapLibre amplia o 18.
+          maxzoom: 18, attribution: "Imagens: Esri, Vantor, Earthstar Geographics e comunidade de usuários GIS" },
 };
 
 /* ---------- utilidades ---------- */
@@ -408,7 +411,9 @@ map.on("error", (e) => {
   }
 });
 map.on("error", (e) => {
-  console.warn("MapLibre:", e.sourceId || "estilo", e.error && e.error.message);
+  const msg = String(e.error && e.error.message || "");
+  if (e.error && (e.error.name === "AbortError" || /aborted/i.test(msg))) return;  // tile cancelado ao mover o mapa
+  console.warn("MapLibre:", e.sourceId || "estilo", msg);
   if (!e.sourceId && !window.geoReady) styleError = e;
 });
 setTimeout(() => {
@@ -449,6 +454,8 @@ map.on("load", async () => {
   applyAnalysis();
   refreshPoints();
   map.on("render", updateClusters);
+  // Inclinar o mapa (botão direito, Ctrl+arrastar ou dois dedos) liga o relevo 3D automaticamente.
+  map.on("pitchend", () => { if (!state.terrain && map.getPitch() > 20) setTerrain(true, { keepCamera: true }); });
   window.geoReady = true;
 });
 
@@ -760,7 +767,7 @@ function openPopup(f) {
 }
 
 /* ---------- relevo 3D ---------- */
-function setTerrain(on) {
+function setTerrain(on, opts = {}) {
   state.terrain = on;
   if (on) {
     if (!map.getSource("dem-3d"))
@@ -768,7 +775,7 @@ function setTerrain(on) {
     map.setTerrain({ source: "dem-3d", exaggeration: state.exag });
     if (map.setSky) map.setSky({ "sky-color": "#9cc7ef", "horizon-color": "#e8f0f7", "fog-color": "#e8eef2",
                                  "sky-horizon-blend": 0.6, "horizon-fog-blend": 0.6, "fog-ground-blend": 0.25 });
-    if (map.getPitch() < 30) map.easeTo({ pitch: 62, bearing: -18, duration: 1200 });
+    if (!opts.keepCamera && map.getPitch() < 30) map.easeTo({ pitch: 62, bearing: -18, duration: 1200 });
   } else {
     map.setTerrain(null);
     map.easeTo({ pitch: 0, bearing: 0, duration: 900 });
