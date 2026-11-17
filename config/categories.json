@@ -1,0 +1,62 @@
+{
+  "_comentario": "Regras de classificação das tags do OpenStreetMap. A ordem importa: o primeiro grupo que casar define a categoria. 'color' é uma das cores aceitas por folium.Icon; 'hex' é usada na legenda e nos gráficos; 'icon' é um ícone Font Awesome 6.",
+  "categories": [
+    {
+      "id": "farmacias",
+      "label": "Farmácias",
+      "color": "green", "hex": "#2e7d32", "icon": "prescription-bottle-medical",
+      "rules": {"amenity": ["pharmacy"], "healthcare": ["pharmacy"]}
+    },
+    {
+      "id": "saude",
+      "label": "Saúde",
+      "color": "red", "hex": "#d32f2f", "icon": "hospital",
+      "rules": {
+        "amenity": ["hospital", "clinic", "doctors", "dentist"],
+        "healthcare": ["hospital", "clinic", "centre", "doctor", "dentist", "laboratory", "rehabilitation", "physiotherapist", "psychotherapist"]
+      }
+    },
+    {
+      "id": "educacao",
+      "label": "Educação",
+      "color": "blue", "hex": "#1565c0", "icon": "graduation-cap",
+      "rules": {"amenity": ["school", "kindergarten", "college", "university"]}
+    },
+    {
+      "id": "seguranca",
+      "label": "Segurança pública",
+      "color": "darkblue", "hex": "#1a237e", "icon": "shield-halved",
+      "rules": {"amenity": ["police", "fire_station"]}
+    },
+    {
+      "id": "transporte",
+      "label": "Transporte",
+      "color": "orange", "hex": "#ef6c00", "icon": "bus",
+      "rules": {"amenity": ["bus_station", "taxi"], "highway": ["bus_stop"], "public_transport": ["station"]}
+    },
+    {
+      "id": "servicos_publicos",
+      "label": "Serviços públicos",
+      "color": "purple", "hex": "#6a1b9a", "icon": "landmark",
+      "rules": {
+        "amenity": ["townhall", "courthouse", "post_office", "library", "community_centre", "social_facility"],
+        "office": ["government"]
+      }
+    },
+    {
+      "id": "lazer",
+      "label": "Lazer e espaços públicos",
+      "color": "darkgreen", "hex": "#1b5e20", "icon": "tree",
+      "rules": {"leisure": ["park", "playground", "sports_centre", "stadium", "garden"]}
+    },
+    {
+      "id": "outros",
+      "label": "Outros pontos de interesse",
+      "color": "cadetblue", "hex": "#5f9ea0", "icon": "star",
+      "rules": {
+        "tourism": ["museum", "attraction", "viewpoint", "gallery"],
+        "amenity": ["theatre", "arts_centre", "cinema", "marketplace"]
+      }
+    }
+  ]
+}

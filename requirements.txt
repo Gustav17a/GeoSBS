@@ -1,0 +1,15 @@
+# Testado com Python 3.13 (Windows e Linux).
+# geopandas instala shapely, pyproj e pyogrio (GDAL embutido) via pip, sem Conda.
+geopandas>=1.0,<2
+pandas>=2.2
+numpy>=2.0
+shapely>=2.0
+pyproj>=3.6
+pyogrio>=0.9
+folium>=0.17
+jinja2>=3.1
+requests>=2.31
+geopy>=2.4
+
+# Testes
+pytest>=8
