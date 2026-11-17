@@ -30,7 +30,7 @@ Pré-requisitos: **Python 3.12 ou 3.13** e **Git**. O QGIS é opcional (validaç
 
 ```powershell
 # 1. Clonar (ou abrir a pasta do projeto)
-git clone https://github.com/<seu-usuario>/GeoSBS.git
+git clone https://github.com/Gustav17a/GeoSBS.git
 cd GeoSBS
 
 # 2. Criar e ativar o ambiente virtual
