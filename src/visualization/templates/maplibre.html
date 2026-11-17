@@ -151,7 +151,8 @@
     #panel { top: auto; bottom: 0; left: 0; width: 100%; max-height: 52%; border-radius: var(--radius) var(--radius) 0 0; }
     #basemaps { bottom: auto; top: 72px; left: 12px; }
     #basemaps button { width: 52px; } #basemaps button .thumb { height: 28px; }
-    #legend { bottom: auto; top: 140px; right: 12px; min-width: 0; }
+    /* Legenda embaixo, acima da atribuição, para não cobrir os botões ⌂ e 3D do canto direito. */
+    #legend { top: auto; bottom: 64px; left: 12px; right: 64px; min-width: 0; max-width: none; padding: 8px 10px; }
   }
 </style>
 </head>
