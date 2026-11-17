@@ -229,3 +229,35 @@ def test_web_map_escapes_html_in_names(tmp_path, municipio, bairros):
     html = build_web_map(pois, municipio, table, indicators.summary(pois, table),
                          tmp_path / "x.html").read_text(encoding="utf-8")
     assert "</script><script>alert(1)" not in html
+
+
+def test_web_map_focus_on_municipio(tmp_path, overpass_file, municipio, bairros):
+    """O mapa abre no município inteiro e a navegação fica limitada aos arredores."""
+    from shapely.geometry import box, shape
+    _, html, data = _web_map(tmp_path, overpass_file, municipio, bairros)
+    assert "bounds: GEO.bounds.municipio" in html and "maxBounds: GEO.bounds.max" in html
+    (mx0, my0), (mx1, my1) = data["bounds"]["municipio"]
+    (nx0, ny0), (nx1, ny1) = data["bounds"]["max"]
+    assert nx0 < mx0 and ny0 < my0 and nx1 > mx1 and ny1 > my1   # município inteiro dentro dos limites
+    mask = shape(data["mask"]["features"][0]["geometry"])
+    mun = shape(data["municipio"]["features"][0]["geometry"])
+    assert mask.intersection(mun).area < 1e-9 * mun.area          # o véu não cobre o município
+    assert mask.union(mun).covers(box(nx0, ny0, nx1, ny1))         # mas cobre o resto da área navegável
+
+
+def test_web_map_esri_key_only_when_configured(tmp_path, overpass_file, municipio, bairros):
+    from src.visualization.maplibre_builder import build_web_map
+    pois, *_ = _processed(overpass_file, municipio, bairros)
+    table = indicators.by_bairro(pois, bairros)
+    summ = indicators.summary(pois, table)
+    sem = build_web_map(pois, municipio, table, summ, tmp_path / "a.html", esri_key="").read_text(encoding="utf-8")
+    com = build_web_map(pois, municipio, table, summ, tmp_path / "b.html", esri_key="CHAVE-TESTE").read_text(encoding="utf-8")
+    assert 'const ESRI_KEY = "";' in sem and "CHAVE-TESTE" not in sem
+    assert 'const ESRI_KEY = "CHAVE-TESTE";' in com
+    assert "server.arcgisonline.com" not in com   # só o endpoint oficial com chave
+
+
+def test_env_file_is_ignored_by_git():
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    assert ".env" in (root / ".gitignore").read_text(encoding="utf-8").split()

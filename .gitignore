@@ -13,3 +13,6 @@ data/raw/*.part
 
 # Configuração local do Claude Code (servidor de preview)
 .claude/
+
+# Chaves de API locais (nunca versionar)
+.env

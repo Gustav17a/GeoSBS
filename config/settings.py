@@ -3,6 +3,7 @@
 Todos os caminhos são construídos com pathlib para funcionar igualmente
 no Windows, Linux e macOS.
 """
+import os
 from pathlib import Path
 
 # --- Caminhos -----------------------------------------------------------------
@@ -33,9 +34,12 @@ CRS_WEB = "EPSG:4326"
 CRS_METRIC = "EPSG:31982"
 
 # --- Fontes oficiais IBGE (URLs verificadas em 17/11/2026) --------------------
+# Bairros: Censo 2022 é a malha de bairros mais recente publicada pelo IBGE.
 _GEOFTP = "https://geoftp.ibge.gov.br/organizacao_do_territorio/malhas_territoriais"
+# Malha Municipal 2025: versão mais recente do limite oficial. Em relação à de 2022,
+# o IBGE revisou a divisa com Campo Alegre (área oficial 495,772 -> 495,001 km²).
 IBGE_MUNICIPIOS_URL = (
-    f"{_GEOFTP}/malhas_municipais/municipio_2022/UFs/SC/SC_Municipios_2022.zip"
+    f"{_GEOFTP}/malhas_municipais/municipio_2025/UFs/SC/SC_Municipios_2025.zip"
 )
 IBGE_BAIRROS_URL = (
     f"{_GEOFTP}/malhas_de_setores_censitarios__divisoes_intramunicipais/"
@@ -73,3 +77,26 @@ MAP_OUTPUT_FILE = MAPS_DIR / "geosbs.html"            # mapa principal (MapLibre
 MAP_CLASSIC_FILE = MAPS_DIR / "geosbs_classico.html"  # versão Leaflet/Folium (alternativa sem WebGL)
 # Cópia publicada no GitHub Pages (pasta docs/). Atualizada a cada execução.
 PAGES_DIR = ROOT_DIR / "docs"
+
+# --- Satélite de alta resolução (Esri World Imagery) ---------------------------
+# Chave de API da ArcGIS Location Platform (conta gratuita: 2 milhões de tiles/mês).
+# Defina a variável de ambiente GEOSBS_ESRI_KEY ou crie o arquivo .env na raiz do
+# projeto com a linha GEOSBS_ESRI_KEY=... (o .env está no .gitignore).
+# Num site estático a chave fica visível no HTML: restrinja os domínios permitidos
+# (ex.: gustav17a.github.io e localhost) no painel da Esri.
+# Sem chave, o mapa usa o Sentinel-2 (10 m), de licença aberta.
+def _env_file_value(name: str) -> str:
+    env = ROOT_DIR / ".env"
+    if not env.exists():
+        return ""
+    for line in env.read_text(encoding="utf-8").splitlines():
+        key, sep, value = line.partition("=")
+        if sep and key.strip() == name:
+            return value.strip().strip('"').strip("'")
+    return ""
+
+
+ESRI_API_KEY = os.environ.get("GEOSBS_ESRI_KEY", "").strip() or _env_file_value("GEOSBS_ESRI_KEY")
+
+# Margem (fração do tamanho do município) que o usuário pode navegar além do limite.
+MAP_NAV_MARGIN = 0.35
