@@ -149,6 +149,10 @@ pelo endereço.
 - Sem a chave da Esri, o satélite é o Sentinel-2 (10 m por pixel): bom para matas e relevo, não
   para ruas. Num site estático a chave fica visível no HTML; por isso deve ser restrita aos
   domínios do projeto no painel da Esri.
+- A Esri só aceita a chave nos domínios autorizados. Aberto direto do disco (`file://`), o mapa
+  usa o Sentinel-2; para ver a alta resolução localmente, sirva a pasta com
+  `python -m http.server --directory output/maps` e abra `http://localhost:8000/geosbs.html`.
+  Se a chave vencer ou for recusada, o mapa volta sozinho para o Sentinel-2 e avisa.
 
 ## Licenças e atribuição
 
