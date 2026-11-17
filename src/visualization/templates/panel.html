@@ -1,0 +1,142 @@
+<style>
+  :root { --geo-bg: rgba(15, 23, 42, 0.94); --geo-fg: #e2e8f0; --geo-muted: #94a3b8;
+          --geo-accent: #22d3ee; --geo-line: rgba(148, 163, 184, 0.25); }
+  #geosbs-panel { position: absolute; top: 12px; left: 56px; z-index: 1000; width: 340px;
+    max-height: calc(100% - 24px); overflow-y: auto; background: var(--geo-bg); color: var(--geo-fg);
+    border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    font: 13px/1.45 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; }
+  #geosbs-panel.collapsed .geo-body { display: none; }
+  .geo-head { padding: 14px 16px 10px; border-bottom: 1px solid var(--geo-line); cursor: pointer; }
+  .geo-head h1 { margin: 0; font-size: 18px; letter-spacing: .3px; }
+  .geo-head h1 span { color: var(--geo-accent); }
+  .geo-head p { margin: 2px 0 0; color: var(--geo-muted); font-size: 12px; }
+  .geo-toggle { float: right; color: var(--geo-muted); font-size: 12px; }
+  .geo-body { padding: 4px 16px 14px; }
+  .geo-section { margin-top: 12px; }
+  .geo-section h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--geo-muted); margin: 0 0 6px; font-weight: 600; }
+  .geo-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .geo-kpi { background: rgba(255,255,255,.05); border: 1px solid var(--geo-line);
+    border-radius: 10px; padding: 8px 10px; }
+  .geo-kpi b { display: block; font-size: 20px; color: #fff; }
+  .geo-kpi small { color: var(--geo-muted); font-size: 11px; }
+  .geo-kpi.wide { grid-column: span 2; }
+  .geo-cat { display: grid; grid-template-columns: 14px 1fr auto auto; gap: 8px;
+    align-items: center; padding: 3px 0; }
+  .geo-dot { width: 12px; height: 12px; border-radius: 50%; }
+  .geo-bar { height: 4px; border-radius: 2px; margin: 0 0 4px 22px; background: var(--geo-line); }
+  .geo-bar i { display: block; height: 100%; border-radius: 2px; }
+  .geo-btn { background: transparent; border: 1px solid var(--geo-line); color: var(--geo-fg);
+    border-radius: 6px; padding: 1px 6px; font-size: 11px; cursor: pointer; }
+  .geo-btn:hover { border-color: var(--geo-accent); color: var(--geo-accent); }
+  .geo-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  table.geo-rank { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.geo-rank td { padding: 2px 0; border-bottom: 1px dashed var(--geo-line); }
+  table.geo-rank td.n { text-align: right; color: var(--geo-accent); font-variant-numeric: tabular-nums; }
+  .geo-legend { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 11px; }
+  .geo-legend span { display: inline-flex; align-items: center; gap: 4px; margin-right: 6px; }
+  .geo-legend i { width: 16px; height: 10px; display: inline-block; border: 1px solid #555; }
+  .geo-note { color: var(--geo-muted); font-size: 11px; border-left: 2px solid var(--geo-accent);
+    padding-left: 8px; margin: 6px 0; }
+  .geo-foot { color: var(--geo-muted); font-size: 10.5px; margin-top: 12px; }
+  .geo-foot a { color: var(--geo-accent); }
+  @media (max-width: 700px) { #geosbs-panel { width: calc(100% - 70px); } }
+</style>
+
+<div id="geosbs-panel">
+  <div class="geo-head" onclick="document.getElementById('geosbs-panel').classList.toggle('collapsed')">
+    <span class="geo-toggle">recolher ▾</span>
+    <h1>Geo<span>SBS</span></h1>
+    <p>Inteligência Geográfica de São Bento do Sul · SC</p>
+  </div>
+  <div class="geo-body">
+
+    <div class="geo-section geo-kpis">
+      <div class="geo-kpi"><b>{{ s.total_estabelecimentos }}</b><small>estabelecimentos e equipamentos</small></div>
+      <div class="geo-kpi"><b>{{ s.bairros_com_registros }}/{{ s.bairros_analisados }}</b><small>bairros com registros</small></div>
+      <div class="geo-kpi wide"><small>Categoria com mais registros</small><b style="font-size:15px">{{ s.categoria_mais_registros or "—" }}</b></div>
+      {% if s.bairro_maior_quantidade %}
+      <div class="geo-kpi"><small>Maior quantidade</small><b style="font-size:14px">{{ s.bairro_maior_quantidade.bairro }}</b><small>{{ s.bairro_maior_quantidade.valor }} registros</small></div>
+      <div class="geo-kpi"><small>Maior densidade</small><b style="font-size:14px">{{ s.bairro_maior_densidade.bairro }}</b><small>{{ "%.1f"|format(s.bairro_maior_densidade.valor) }} por km²</small></div>
+      <div class="geo-kpi"><small>Menor quantidade</small><b style="font-size:14px">{{ s.bairro_menor_quantidade.bairro }}</b><small>{{ s.bairro_menor_quantidade.valor }} registros</small></div>
+      <div class="geo-kpi"><small>Menor densidade</small><b style="font-size:14px">{{ s.bairro_menor_densidade.bairro }}</b><small>{{ "%.1f"|format(s.bairro_menor_densidade.valor) }} por km²</small></div>
+      {% endif %}
+    </div>
+
+    <div class="geo-section">
+      <h2>Categorias · filtrar no mapa</h2>
+      {% for c in categories %}
+      <div class="geo-cat">
+        <span class="geo-dot" style="background:{{ c.hex }}"></span>
+        <span>{{ c.label }}</span>
+        <b>{{ c.count }}</b>
+        <button class="geo-btn" onclick="geoOnly('{{ c.layer }}')" title="Mostrar só esta categoria">só</button>
+      </div>
+      <div class="geo-bar"><i style="width:{{ c.pct }}%;background:{{ c.hex }}"></i></div>
+      {% endfor %}
+      <div class="geo-actions">
+        <button class="geo-btn" onclick="geoAll(true)">mostrar todas</button>
+        <button class="geo-btn" onclick="geoAll(false)">ocultar todas</button>
+        <button class="geo-btn" onclick="geoView('heat')">ver mapa de calor</button>
+        <button class="geo-btn" onclick="geoView('markers')">ver marcadores</button>
+      </div>
+      {% if s.paradas_onibus %}
+      <p class="geo-note">A camada Transporte inclui {{ s.paradas_onibus }} paradas de ônibus. Elas aparecem no mapa,
+        mas não entram nas contagens de estabelecimentos nem no mapa de calor.</p>
+      {% endif %}
+    </div>
+
+    <div class="geo-section">
+      <h2>Bairros com mais registros</h2>
+      <table class="geo-rank">
+        {% for r in top_count %}<tr><td>{{ r.NM_BAIRRO }}</td><td class="n">{{ r.total }}</td></tr>{% endfor %}
+      </table>
+    </div>
+
+    <div class="geo-section">
+      <h2>Coropléticos (ative em Camadas)</h2>
+      {% for leg in legends %}
+      <div style="margin-bottom:6px"><small>{{ leg.title }}</small>
+        <div class="geo-legend">{% for b in leg.bins %}<span><i style="background:{{ b.color }}"></i>{{ b.label }}</span>{% endfor %}</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="geo-section">
+      <p class="geo-note"><b>Como ler:</b> o mapa mostra a distribuição dos <i>registros coletados</i>, não a
+        qualidade nem a capacidade real dos serviços. Áreas pouco mapeadas no OpenStreetMap podem parecer ter menos serviços
+        do que têm. Quantidade, densidade (por km²) e proximidade são medidas diferentes.</p>
+      {% if s.bairros_sem_registros %}
+      <p class="geo-note">Bairros sem nenhum registro na base: {{ s.bairros_sem_registros|join(", ") }}.</p>
+      {% endif %}
+      {% if s.fora_dos_bairros %}
+      <p class="geo-note">{{ s.fora_dos_bairros }} registros estão fora dos {{ s.bairros_analisados }} bairros oficiais (área rural ou não abrangida).</p>
+      {% endif %}
+    </div>
+
+    <div class="geo-foot">
+      Fontes: © <a href="https://www.openstreetmap.org/copyright" target="_blank">colaboradores do OpenStreetMap</a> (ODbL),
+      coleta em {{ s.data_coleta or "—" }}; IBGE: Malha Municipal 2022 e Malha de Bairros do Censo 2022.<br>
+      Gerado em {{ generated_at }} · GeoSBS · UDESC – Bacharelado em Sistemas de Informação.
+    </div>
+  </div>
+</div>
+
+<script>
+  function geoInputs() {
+    return Array.from(document.querySelectorAll('.leaflet-control-layers-overlays label'))
+      .map(l => ({ text: l.textContent.trim(), input: l.querySelector('input') }));
+  }
+  function geoSet(match, on) {
+    geoInputs().forEach(o => { if (match(o.text) && o.input.checked !== on) o.input.click(); });
+  }
+  const GEO_CAT_LAYERS = {{ category_layers|tojson }};
+  const isCat = t => GEO_CAT_LAYERS.some(l => t.startsWith(l));
+  function geoOnly(layer) { geoSet(isCat, false); geoSet(t => t.startsWith(layer), true); geoView('markers'); }
+  function geoAll(on) { geoSet(isCat, on); }
+  function geoView(mode) {
+    const heat = t => t.startsWith('{{ heat_layer }}');
+    if (mode === 'heat') { geoSet(isCat, false); geoSet(heat, true); }
+    else { geoSet(heat, false); if (!geoInputs().some(o => isCat(o.text) && o.input.checked)) geoAll(true); }
+  }
+</script>

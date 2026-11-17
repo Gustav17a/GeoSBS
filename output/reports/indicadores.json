@@ -1,0 +1,53 @@
+{
+  "indicadores": {
+    "total_estabelecimentos": 131,
+    "total_registros_mapa": 177,
+    "paradas_onibus": 46,
+    "por_categoria": {
+      "Farmácias": 7,
+      "Saúde": 14,
+      "Educação": 26,
+      "Segurança pública": 4,
+      "Transporte": 5,
+      "Serviços públicos": 22,
+      "Lazer e espaços públicos": 39,
+      "Outros pontos de interesse": 14
+    },
+    "categoria_mais_registros": "Lazer e espaços públicos",
+    "bairros_analisados": 20,
+    "bairros_com_registros": 16,
+    "bairros_sem_registros": [
+      "Industrial Sudoeste",
+      "Dona Francisca",
+      "Alpino",
+      "Rio Vermelho Povoado"
+    ],
+    "fora_dos_bairros": 12,
+    "bairro_maior_quantidade": {
+      "bairro": "Centro",
+      "valor": 46
+    },
+    "bairro_menor_quantidade": {
+      "bairro": "Industrial Sudoeste",
+      "valor": 0
+    },
+    "bairro_maior_densidade": {
+      "bairro": "Centro",
+      "valor": 15.45
+    },
+    "bairro_menor_densidade": {
+      "bairro": "Rio Vermelho Povoado",
+      "valor": 0.0
+    },
+    "data_coleta": "2026-11-17T17:41:17"
+  },
+  "qualidade": {
+    "registros_recebidos": 235,
+    "coordenada_invalida": 0,
+    "fora_do_municipio": 57,
+    "sem_nome": 77,
+    "sem_endereco": 137,
+    "duplicatas_removidas": 1,
+    "registros_finais": 177
+  }
+}

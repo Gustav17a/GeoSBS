@@ -1,0 +1,15 @@
+# Ambiente
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.idea/
+.vscode/
+
+# Dados baixados (grandes e reprodutíveis pelo pipeline)
+data/shapefiles/*.zip
+data/raw/*.part
+
+# Configuração local do Claude Code (servidor de preview)
+.claude/

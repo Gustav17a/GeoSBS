@@ -1,0 +1,11 @@
+[out:json][timeout:180];
+(
+  nwr["amenity"~"^(arts_centre|bus_station|cinema|clinic|college|community_centre|courthouse|dentist|doctors|fire_station|hospital|kindergarten|library|marketplace|pharmacy|police|post_office|school|social_facility|taxi|theatre|townhall|university)$"](-26.42759,-49.49080,-26.16196,-49.16885);
+  nwr["healthcare"~"^(centre|clinic|dentist|doctor|hospital|laboratory|pharmacy|physiotherapist|psychotherapist|rehabilitation)$"](-26.42759,-49.49080,-26.16196,-49.16885);
+  nwr["highway"~"^(bus_stop)$"](-26.42759,-49.49080,-26.16196,-49.16885);
+  nwr["leisure"~"^(garden|park|playground|sports_centre|stadium)$"](-26.42759,-49.49080,-26.16196,-49.16885);
+  nwr["office"~"^(government)$"](-26.42759,-49.49080,-26.16196,-49.16885);
+  nwr["public_transport"~"^(station)$"](-26.42759,-49.49080,-26.16196,-49.16885);
+  nwr["tourism"~"^(attraction|gallery|museum|viewpoint)$"](-26.42759,-49.49080,-26.16196,-49.16885);
+);
+out center tags;
