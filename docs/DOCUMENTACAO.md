@@ -110,7 +110,7 @@ agregados por áreas dependem do recorte adotado, o Problema da Unidade de Área
 | Deduplicação | Mesma categoria, distância ≤ 75 m e similaridade de nome ≥ 0,85; mantém-se o registro mais completo. |
 | Análise espacial | Junção ponto-em-polígono para atribuir bairro; área em km² na projeção UTM 22S; densidade = registros/km²; taxa por habitante = registros por 10 mil moradores (bairros com menos de 500 moradores marcados como taxa instável e excluídos dos destaques de maior/menor); proximidade = distância em linha reta do ponto representativo do bairro à unidade mais próxima; índice de Clark-Evans por categoria com teste de Monte Carlo (999 sorteios na área dos bairros, p < 0,05); região "fora dos bairros" (município − bairros) com quantidade, densidade e população próprias. |
 | Visualização | MapLibre GL JS: mapa vetorial (OpenFreeMap/OSM), satélite Esri World Imagery (alta resolução, com chave) ou Sentinel-2 (EOxCloudless), relevo sombreado e hipsométrico e terreno 3D a partir de elevação real (SRTM/GMTED2010); ícones SVG por categoria, clusters, mapa de calor, coropléticos e painel HTML/CSS/JS. Versão clássica em Folium (Leaflet) como alternativa sem WebGL. |
-| Verificação | 56 testes automatizados (pytest); conferência da área calculada com a oficial e da população do município (83.277) com o total oficial do Censo 2022; teste de interface automatizado num navegador real (`tests/ui/run_ui_tests.py`, 26 verificações: enquadramento, navegação, filtros, mapa de calor, três coropléticos, mapas-base, camada do CNES, popups, clusters e 3D); inspeção visual do mapa. |
+| Verificação | 58 testes automatizados (pytest); conferência da área calculada com a oficial e da população do município (83.277) com o total oficial do Censo 2022; teste de interface automatizado num navegador real (`tests/ui/run_ui_tests.py`, 28 verificações: enquadramento, navegação, filtros, mapa de calor, três coropléticos, mapas-base, camada do CNES, aba Bairros, popups, clusters e 3D); inspeção visual do mapa. |
 
 Paradas de ônibus são exibidas no mapa, mas excluídas das contagens de estabelecimentos e do
 mapa de calor, para não distorcer a comparação entre bairros.
@@ -281,6 +281,12 @@ Só **5 dos 22 postos de atenção básica** aparecem no OpenStreetMap (Central,
 saúde no cadastro oficial: **Alpino** (ESF 7 Alpino) e **Rio Vermelho Povoado** (ESF Rio
 Vermelho Povoado); a lacuna é do OSM, não da cidade. Industrial Sudoeste (93 moradores, área
 industrial) e Dona Francisca continuam sem nenhuma unidade pública de saúde nas duas fontes.
+
+Para que "16 de 20 bairros com registros" não seja lido como "só 16 bairros no mapa", o painel
+tem uma aba **Bairros** com os 20 bairros oficiais e a situação de cada um: **16** com
+estabelecimentos no OSM (13 deles também com unidade do CNES), **2 só com posto do CNES**
+(Alpino e Rio Vermelho Povoado) e **2 sem registro nas duas fontes** (Dona Francisca e
+Industrial Sudoeste). A mesma tabela está no mapa clássico e em `resultados.md`.
 
 A comparação também mostrou um erro na fonte oficial: a UPA tem no CNES o endereço "Rua João
 Pauli, esquina com a Av. São Bento" (Colonial), mas a coordenada cai no Centro, a 2,8 km do

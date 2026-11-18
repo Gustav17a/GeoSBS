@@ -118,6 +118,34 @@ Fonte oficial: CNES, API de dados abertos do Ministério da Saúde (baixado em 2
 
 _Correspondência: registro do OSM com nome → ao menos uma palavra própria em comum e até 1000 m; registro sem nome → até 250 m (só atenção básica). Coordenadas do CNES são informadas pelo próprio estabelecimento e podem ter erro; detalhes por unidade em `cnes_unidades.csv`._
 
+## Todos os bairros do mapa
+Os 20 bairros oficiais estão no mapa: 16 com estabelecimentos no OSM, 2 só com posto público de saúde no CNES e 2 sem registro nas duas fontes.
+
+| Bairro | Moradores | OSM (estabelecimentos) | CNES (unidades públicas de saúde) | Situação |
+|---|---|---|---|---|
+| Alpino | 1659 | 0 | 1 | só CNES |
+| Bela Aliança | 488 | 1 | 1 | OSM e CNES |
+| Boehmerwald | 2161 | 4 | 1 | OSM e CNES |
+| Brasília | 6394 | 5 | 1 | OSM e CNES |
+| Centenário | 5789 | 8 | 3 | OSM e CNES |
+| Centro | 5235 | 44 | 10 | OSM e CNES |
+| Colonial | 5955 | 8 | 2 | OSM e CNES |
+| Cruzeiro | 6551 | 2 | 2 | OSM e CNES |
+| Dona Francisca | 2083 | 0 | 0 | nenhuma fonte |
+| Industrial Sudoeste | 93 | 0 | 0 | nenhuma fonte |
+| Lençol | 3103 | 1 | 1 | OSM e CNES |
+| Mato Preto | 3481 | 4 | 1 | OSM e CNES |
+| Oxford | 3386 | 15 | 0 | só OSM |
+| Progresso | 4374 | 3 | 2 | OSM e CNES |
+| Rio Negro | 4262 | 3 | 0 | só OSM |
+| Rio Vermelho - Estação | 1292 | 1 | 1 | OSM e CNES |
+| Rio Vermelho Povoado | 301 | 0 | 1 | só CNES |
+| Schramm | 4834 | 4 | 1 | OSM e CNES |
+| Serra Alta | 12167 | 11 | 4 | OSM e CNES |
+| Vinte e Cinco de Julho | 4190 | 1 | 0 | só OSM |
+
+_"Nenhuma fonte" não quer dizer que o bairro não tem serviços: só que nenhum foi registrado no OSM nem é unidade pública de saúde no CNES._
+
 ## Proximidade (ponto representativo do bairro → unidade mais próxima, em metros, linha reta)
 | Bairro | dist_saude_m | dist_educacao_m | dist_farmacias_m |
 |---|---|---|---|

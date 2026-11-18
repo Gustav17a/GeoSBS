@@ -387,3 +387,31 @@ def cnes_completeness(units: gpd.GeoDataFrame, pois: gpd.GeoDataFrame,
          "lat", "lon", "no_osm", "osm_correspondente", "dist_osm_m", "criterio",
          "dist_saude_osm_mais_proxima_m"]]
     return summary, detail.sort_values(["grupo", "bairro", "nome"]).reset_index(drop=True)
+
+
+SITUACOES = {"ambas": "OSM e CNES", "osm": "só OSM", "cnes": "só CNES", "nenhuma": "nenhuma fonte"}
+
+
+def bairros_overview(table: gpd.GeoDataFrame, cnes: dict | None = None) -> dict:
+    """Todos os bairros do mapa, com o que cada fonte registra em cada um.
+
+    Não calcula nada novo: junta a contagem do OSM (estabelecimentos), a
+    população e as unidades públicas de saúde do CNES (quando houver), para que
+    "16 de 20 bairros com registros" não seja lido como "só 16 bairros no mapa".
+    """
+    import unicodedata
+    cnes_rows = {r["bairro"]: r for r in (cnes or {}).get("por_bairro", [])}
+    rows = []
+    for r in table.itertuples(index=False):
+        c = cnes_rows.get(r.NM_BAIRRO, {})
+        osm, n_cnes = int(r.total), int(c.get("cnes_unidades", 0))
+        key = "ambas" if osm and n_cnes else "osm" if osm else "cnes" if n_cnes else "nenhuma"
+        rows.append({"bairro": r.NM_BAIRRO,
+                     "populacao": int(r.populacao) if "populacao" in table and pd.notna(r.populacao) else None,
+                     "osm": osm, "osm_saude": int(r.saude) if "saude" in table else None,
+                     "cnes": n_cnes if cnes else None, "situacao": key})
+    rows.sort(key=lambda x: unicodedata.normalize("NFKD", x["bairro"]).encode("ascii", "ignore").decode().lower())
+    count = lambda k: sum(r["situacao"] == k for r in rows)
+    return {"bairros": rows, "no_mapa": len(rows),
+            "com_osm": count("ambas") + count("osm"), "so_cnes": count("cnes"),
+            "sem_registro": count("nenhuma"), "tem_cnes": bool(cnes), "rotulos": SITUACOES}

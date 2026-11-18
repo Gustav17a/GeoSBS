@@ -588,3 +588,29 @@ def test_panel_shows_both_bairro_counts(tmp_path, overpass_file, municipio, bair
     write_reports(s, table, pd.DataFrame(), pd.DataFrame(), {"registros_finais": len(pois)}, dups, rejected,
                   out_dir=tmp_path)
     assert "3 contando os postos públicos de saúde do CNES: Vazio" in (tmp_path / "resultados.md").read_text(encoding="utf-8")
+
+
+def test_all_bairros_overview_in_tab_and_report(tmp_path, overpass_file, municipio, bairros):
+    """A aba Bairros lista TODOS os bairros, com a situação de cada fonte."""
+    from src.analytics.report import write_reports
+    from src.visualization.map_builder import build_map
+    from src.visualization.maplibre_builder import build_web_map
+    pois, rejected, quality, dups = _processed(overpass_file, municipio, bairros)
+    table = indicators.by_bairro(pois, bairros, _pop())
+    s = indicators.summary(pois, table)
+    s["cnes"] = {"unidades": 1, "atencao_basica": 1, "atencao_basica_no_osm": 0, "unidades_no_osm": 0,
+                 "por_grupo": {}, "bairros_sem_osm_com_cnes": ["Vazio"],
+                 "por_bairro": [{"bairro": "Vazio", "cnes_unidades": 1}],
+                 "regra": {"distancia_nome_m": 1000, "distancia_sem_nome_m": 250}}
+    s["bairros_situacao"] = bs = indicators.bairros_overview(table, s["cnes"])
+    assert [r["bairro"] for r in bs["bairros"]] == ["Leste", "Oeste", "Vazio"]
+    assert {r["bairro"]: r["situacao"] for r in bs["bairros"]} == {"Leste": "osm", "Oeste": "osm", "Vazio": "cnes"}
+    assert (bs["no_mapa"], bs["com_osm"], bs["so_cnes"], bs["sem_registro"]) == (3, 2, 1, 0)
+    html_web = build_web_map(pois, municipio, table, s, tmp_path / "w.html").read_text(encoding="utf-8")
+    assert 'data-tab="bai"' in html_web and html_web.count("<tr data-b=") == 3
+    assert 'sit sit-cnes">só CNES' in html_web
+    classic = build_map(pois, municipio, table, s, tmp_path / "c.html").read_text(encoding="utf-8")
+    assert "bairros do mapa" in classic
+    write_reports(s, table, pd.DataFrame(), pd.DataFrame(), {"registros_finais": len(pois)}, dups, rejected,
+                  out_dir=tmp_path)
+    assert "## Todos os bairros do mapa" in (tmp_path / "resultados.md").read_text(encoding="utf-8")

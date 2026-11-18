@@ -113,6 +113,7 @@ def run(refresh_osm: bool, refresh_ibge: bool, open_browser: bool,
     proximity = indicators.proximity(pois, bairros)
     patterns = indicators.spatial_patterns(pois, bairros)
     summary["cnes"], cnes_detail = indicators.cnes_completeness(units, pois, table)
+    summary["bairros_situacao"] = indicators.bairros_overview(table, summary["cnes"])
     for path in write_reports(summary, table, proximity, patterns, quality, duplicates, rejected,
                               cnes_detail=cnes_detail):
         log.info("    Relatório: %s", path.relative_to(settings.ROOT_DIR))

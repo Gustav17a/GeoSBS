@@ -11,7 +11,10 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
   "vazios" com posto público (Alpino, Rio Vermelho Povoado); tabela por bairro e
   `cnes_unidades.csv`.
 - Regra de correspondência CNES × OSM por nome e distância, ajustada em pares reais.
-- 56 testes automatizados; teste de interface com 26 verificações.
+- Aba "Bairros": os 20 bairros do mapa com moradores, registros do OSM, unidades do CNES e
+  situação (OSM e CNES, só OSM, só CNES, nenhuma fonte); clique leva ao bairro. Mesma tabela
+  no mapa clássico e no relatório. O cartão "16/20" agora diz "no OSM" e mostra 18/20 com o CNES.
+- 58 testes automatizados; teste de interface com 28 verificações.
 
 ## [1.3.0] — 2026-11-18
 ### Adicionado

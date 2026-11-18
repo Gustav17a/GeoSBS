@@ -306,6 +306,181 @@
         "fora_do_municipio": 1,
         "no_mapa": 33
       }
+    },
+    "bairros_situacao": {
+      "bairros": [
+        {
+          "bairro": "Alpino",
+          "populacao": 1659,
+          "osm": 0,
+          "osm_saude": 0,
+          "cnes": 1,
+          "situacao": "cnes"
+        },
+        {
+          "bairro": "Bela Aliança",
+          "populacao": 488,
+          "osm": 1,
+          "osm_saude": 0,
+          "cnes": 1,
+          "situacao": "ambas"
+        },
+        {
+          "bairro": "Boehmerwald",
+          "populacao": 2161,
+          "osm": 4,
+          "osm_saude": 1,
+          "cnes": 1,
+          "situacao": "ambas"
+        },
+        {
+          "bairro": "Brasília",
+          "populacao": 6394,
+          "osm": 5,
+          "osm_saude": 0,
+          "cnes": 1,
+          "situacao": "ambas"
+        },
+        {
+          "bairro": "Centenário",
+          "populacao": 5789,
+          "osm": 8,
+          "osm_saude": 0,
+          "cnes": 3,
+          "situacao": "ambas"
+        },
+        {
+          "bairro": "Centro",
+          "populacao": 5235,
+          "osm": 44,
+          "osm_saude": 6,
+          "cnes": 10,
+          "situacao": "ambas"
+        },
+        {
+          "bairro": "Colonial",
+          "populacao": 5955,
+          "osm": 8,
+          "osm_saude": 2,
+          "cnes": 2,
+          "situacao": "ambas"
+        },
+        {
+          "bairro": "Cruzeiro",
+          "populacao": 6551,
+          "osm": 2,
+          "osm_saude": 0,
+          "cnes": 2,
+          "situacao": "ambas"
+        },
+        {
+          "bairro": "Dona Francisca",
+          "populacao": 2083,
+          "osm": 0,
+          "osm_saude": 0,
+          "cnes": 0,
+          "situacao": "nenhuma"
+        },
+        {
+          "bairro": "Industrial Sudoeste",
+          "populacao": 93,
+          "osm": 0,
+          "osm_saude": 0,
+          "cnes": 0,
+          "situacao": "nenhuma"
+        },
+        {
+          "bairro": "Lençol",
+          "populacao": 3103,
+          "osm": 1,
+          "osm_saude": 0,
+          "cnes": 1,
+          "situacao": "ambas"
+        },
+        {
+          "bairro": "Mato Preto",
+          "populacao": 3481,
+          "osm": 4,
+          "osm_saude": 0,
+          "cnes": 1,
+          "situacao": "ambas"
+        },
+        {
+          "bairro": "Oxford",
+          "populacao": 3386,
+          "osm": 15,
+          "osm_saude": 0,
+          "cnes": 0,
+          "situacao": "osm"
+        },
+        {
+          "bairro": "Progresso",
+          "populacao": 4374,
+          "osm": 3,
+          "osm_saude": 1,
+          "cnes": 2,
+          "situacao": "ambas"
+        },
+        {
+          "bairro": "Rio Negro",
+          "populacao": 4262,
+          "osm": 3,
+          "osm_saude": 0,
+          "cnes": 0,
+          "situacao": "osm"
+        },
+        {
+          "bairro": "Rio Vermelho - Estação",
+          "populacao": 1292,
+          "osm": 1,
+          "osm_saude": 0,
+          "cnes": 1,
+          "situacao": "ambas"
+        },
+        {
+          "bairro": "Rio Vermelho Povoado",
+          "populacao": 301,
+          "osm": 0,
+          "osm_saude": 0,
+          "cnes": 1,
+          "situacao": "cnes"
+        },
+        {
+          "bairro": "Schramm",
+          "populacao": 4834,
+          "osm": 4,
+          "osm_saude": 3,
+          "cnes": 1,
+          "situacao": "ambas"
+        },
+        {
+          "bairro": "Serra Alta",
+          "populacao": 12167,
+          "osm": 11,
+          "osm_saude": 1,
+          "cnes": 4,
+          "situacao": "ambas"
+        },
+        {
+          "bairro": "Vinte e Cinco de Julho",
+          "populacao": 4190,
+          "osm": 1,
+          "osm_saude": 0,
+          "cnes": 0,
+          "situacao": "osm"
+        }
+      ],
+      "no_mapa": 20,
+      "com_osm": 16,
+      "so_cnes": 2,
+      "sem_registro": 2,
+      "tem_cnes": true,
+      "rotulos": {
+        "ambas": "OSM e CNES",
+        "osm": "só OSM",
+        "cnes": "só CNES",
+        "nenhuma": "nenhuma fonte"
+      }
     }
   },
   "qualidade": {

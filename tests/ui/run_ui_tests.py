@@ -133,6 +133,11 @@ def checks(r: dict) -> list[tuple[str, bool, object]]:
         ("modo híbrido com rótulos", r.get("base_hibrido") == {"satelite": "visible", "relevo": "none", "rotulos": "visible"}, r.get("base_hibrido")),
         ("modo relevo", (r.get("base_relevo") or {}).get("relevo") == "visible", r.get("base_relevo")),
         ("modo mapa", (r.get("base_mapa") or {}).get("satelite") == "none", r.get("base_mapa")),
+        ("aba Bairros lista todos os bairros", bool(r.get("abaBairros")) and r["abaBairros"]["aberta"]
+         and r["abaBairros"]["linhas"] == r["abaBairros"]["bairros"] == bairros,
+         f"{(r.get('abaBairros') or {}).get('linhas')} de {bairros}"),
+        ("clique na aba Bairros leva ao bairro", (r.get("abaBairros") or {}).get("foiAoBairro") is True,
+         (r.get("abaBairros") or {}).get("foiAoBairro")),
         ("camada CNES desligada ao abrir", (r.get("cnes") or {}).get("aoAbrir") == "none", (r.get("cnes") or {}).get("aoAbrir")),
         ("camada CNES mostra todas as unidades", bool(r.get("cnes")) and r["cnes"]["visiveis"] == r["cnes"]["total"] > 0,
          f"{(r.get('cnes') or {}).get('visiveis')} de {(r.get('cnes') or {}).get('total')}"),

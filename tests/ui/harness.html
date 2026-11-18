@@ -60,6 +60,19 @@ f.onload = async () => {
     const src = m.getSource("sat");
     R.fonteSatelite = src ? (src.tiles[0].includes("ibasemaps") ? "esri" : "sentinel2") : "nenhuma";
 
+    // Aba Bairros: todos os bairros listados; clicar leva o mapa ao bairro.
+    if (doc.querySelector('[data-tab="bai"]')) {
+      doc.querySelector('[data-goto-tab="bai"]').click(); await sleep(300);
+      const linhas = doc.querySelectorAll("#bairrosTab tr[data-b]");
+      const aberta = !doc.getElementById("tab-bai").hidden;
+      const alvo = [...linhas].find(tr => tr.dataset.b === "Alpino");
+      alvo && alvo.click(); await sleep(1600); await idle();
+      const bb = GEO.bairroList.find(b => b.nome === "Alpino").bbox, v = m.getBounds();
+      R.abaBairros = { aberta, linhas: linhas.length, bairros: GEO.bairros.features.length,
+                       foiAoBairro: v.contains([bb[0], bb[1]]) && v.contains([bb[2], bb[3]]) && m.getZoom() > 13 };
+      doc.querySelector('[data-tab="ind"]').click();
+    }
+
     // Camada de comparação do CNES: desligada ao abrir; ligada mostra todas as unidades e não muda as contagens.
     if (m.getLayer("cnes")) {
       const antes = m.getLayoutProperty("cnes", "visibility");

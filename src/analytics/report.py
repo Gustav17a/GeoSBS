@@ -105,6 +105,21 @@ def _cnes_md(c: dict) -> list[str]:
     ]
 
 
+def _situacao_md(bs: dict) -> list[str]:
+    cols = {"bairro": "Bairro", "populacao": "Moradores", "osm": "OSM (estabelecimentos)"}
+    if bs["tem_cnes"]:
+        cols["cnes"] = "CNES (unidades públicas de saúde)"
+    tab = pd.DataFrame(bs["bairros"])
+    tab["Situação"] = tab["situacao"].map(bs["rotulos"])
+    tab = tab[[*cols, "Situação"]].rename(columns=cols)
+    resumo = (f"Os {bs['no_mapa']} bairros oficiais estão no mapa: {bs['com_osm']} com estabelecimentos no OSM"
+              + (f", {bs['so_cnes']} só com posto público de saúde no CNES" if bs["tem_cnes"] else "")
+              + f" e {bs['sem_registro']} sem registro" + (" nas duas fontes." if bs["tem_cnes"] else " no OSM."))
+    return ["## Todos os bairros do mapa", resumo, "", _md_table(tab), "",
+            "_\"Nenhuma fonte\" não quer dizer que o bairro não tem serviços: só que nenhum foi registrado "
+            "no OSM nem é unidade pública de saúde no CNES._", ""]
+
+
 def write_reports(summary: dict, table: gpd.GeoDataFrame, proximity: pd.DataFrame,
                   patterns: pd.DataFrame, quality: dict, duplicates: pd.DataFrame,
                   rejected: pd.DataFrame, out_dir: Path = settings.REPORTS_DIR,
@@ -174,6 +189,7 @@ def write_reports(summary: dict, table: gpd.GeoDataFrame, proximity: pd.DataFram
         *(_regions_md(summary["regioes"]) if summary.get("regioes") else []),
         *_bairros_md(tab),
         *(_cnes_md(summary["cnes"]) if summary.get("cnes") else []),
+        *(_situacao_md(summary["bairros_situacao"]) if summary.get("bairros_situacao") else []),
         "## Proximidade (ponto representativo do bairro → unidade mais próxima, em metros, linha reta)",
         _md_table(proximity.rename(columns={"NM_BAIRRO": "Bairro"})),
         "",
