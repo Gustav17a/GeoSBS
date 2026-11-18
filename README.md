@@ -1,5 +1,10 @@
 # GeoSBS — Plataforma de Inteligência Geográfica de São Bento do Sul
 
+[![Testes](https://github.com/Gustav17a/GeoSBS/actions/workflows/tests.yml/badge.svg)](https://github.com/Gustav17a/GeoSBS/actions/workflows/tests.yml)
+[![Mapa publicado](https://img.shields.io/badge/mapa-GitHub%20Pages-22d3ee)](https://gustav17a.github.io/GeoSBS/)
+![Python 3.13](https://img.shields.io/badge/python-3.13-3776ab)
+[![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-green)](LICENSE)
+
 Aplicação em Python que coleta, valida, integra e analisa dados geográficos de
 equipamentos urbanos de **São Bento do Sul (SC)** e gera um **mapa interativo**
 (MapLibre GL JS) com mapa vetorial, satélite, relevo sombreado e **terreno em 3D com
@@ -19,7 +24,7 @@ marcadores, mapa de calor e mapas coropléticos por bairro.
 
 | Etapa | Descrição | Módulo |
 |---|---|---|
-| Coleta | Malha municipal 2022 e Malha de Bairros do Censo 2022 (IBGE); pontos de interesse do OpenStreetMap (uma consulta Overpass, com cache) | `src/data_collection` |
+| Coleta | Malha Municipal 2025 e Malha de Bairros do Censo 2022 (IBGE); pontos de interesse do OpenStreetMap (uma consulta Overpass, com cache) | `src/data_collection` |
 | Processamento | Esquema padronizado, classificação em 8 categorias, validação de coordenadas, recorte pelo limite municipal, flags de dados ausentes, remoção de duplicatas | `src/data_processing` |
 | Geoprocessamento | Reprojeção (SIRGAS 2000 → UTM 22S / WGS 84), áreas em km², junção espacial ponto-em-polígono, geocodificação com Geopy/Nominatim | `src/geospatial` |
 | Análise | Quantidade, densidade (por km²) e proximidade por bairro; área urbana × fora dos bairros; índice do vizinho mais próximo (Clark-Evans) por categoria com teste de significância de Monte Carlo | `src/analytics` |
@@ -44,9 +49,9 @@ py -3.13 -m venv .venv
 #   Se o PowerShell bloquear scripts, rode uma vez:
 #   Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 
-# 3. Instalar dependências
+# 3. Instalar dependências (versões exatas em que o projeto foi testado)
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+pip install -r requirements-lock.txt
 
 # 4. Executar
 python main.py
@@ -111,6 +116,40 @@ Para incluir pontos conferidos em outras fontes (ex.: site da Prefeitura), crie
 `data/raw/pontos_manuais.csv` (separador `;`) com as colunas
 `nome;categoria;endereco;lat;lon;fonte`. Linhas sem `lat/lon` são geocodificadas
 pelo endereço.
+
+## Estrutura do repositório
+
+```
+main.py                 pipeline completo (coleta → processamento → análise → mapas)
+config/                 settings.py (caminhos, CRS, fontes) e categories.json (regras de classificação)
+src/
+  data_collection/      IBGE (malhas), OpenStreetMap (Overpass), HTTP com cache
+  data_processing/      padronização, validação, deduplicação
+  geospatial/           junção espacial, áreas, geocodificação (Nominatim)
+  analytics/            indicadores, proximidade, Clark-Evans (Monte Carlo), relatórios
+  visualization/        mapa MapLibre (maplibre_builder.py + templates/) e mapa clássico (Folium)
+tests/                  testes automatizados (pytest) e tests/ui/ (teste de interface no navegador)
+data/raw/               coleta bruta do OSM e cache de geocodificação (versionados: reprodutibilidade)
+data/processed/         base tratada (GeoJSON e CSV)
+output/                 mapas e relatórios gerados
+docs/                   documentação acadêmica, imagens e o site publicado no GitHub Pages
+```
+
+## Reprodutibilidade e qualidade
+
+- **Versões fixadas:** `requirements-lock.txt` registra as versões exatas testadas;
+  `requirements.txt` traz as faixas compatíveis.
+- **Dados brutos versionados:** a coleta do OSM (`data/raw/`) e o cache do Nominatim permitem
+  refazer todas as análises sem novas consultas às APIs (`python main.py`, sem `--refresh`).
+- **Testes:** `python -m pytest` (rápidos, rodam no GitHub Actions a cada push) e
+  `python tests/ui/run_ui_tests.py` (interface num navegador real).
+- **Análises reprodutíveis:** o teste de Monte Carlo usa semente fixa.
+
+## Segurança
+
+O `.env` (chave da Esri) e o `.venv` nunca são versionados, e o CI falha se aparecerem no
+repositório. A chave da Esri fica visível no site publicado, como em qualquer mapa web estático,
+mas é restrita aos domínios do projeto e a mapas-base. Detalhes em [SECURITY.md](SECURITY.md).
 
 ## Decisões técnicas
 

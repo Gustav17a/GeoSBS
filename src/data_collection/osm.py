@@ -50,9 +50,26 @@ def build_query(bbox: tuple[float, float, float, float]) -> str:
     )
 
 
+def _data_timestamp(path: Path) -> str:
+    """Data dos dados OSM gravada pelo próprio Overpass (osm3s.timestamp_osm_base).
+
+    Vale tanto para coletas automáticas quanto para exportações manuais do
+    overpass-turbo; ordenar pelo nome do arquivo faria "osm_overpass_manual.json"
+    vencer sempre, mesmo sendo mais antigo.
+    """
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return str(payload.get("osm3s", {}).get("timestamp_osm_base") or "")
+    except (OSError, ValueError):
+        return ""
+
+
 def latest_raw_file() -> Path | None:
-    files = sorted(settings.RAW_DIR.glob(f"{RAW_PREFIX}*.json"))
-    return files[-1] if files else None
+    """Coleta com os dados OSM mais recentes; em empate, a automática (nome com data)."""
+    files = list(settings.RAW_DIR.glob(f"{RAW_PREFIX}*.json"))
+    if not files:
+        return None
+    return max(files, key=lambda f: (_data_timestamp(f), f.stem != f"{RAW_PREFIX}manual", f.name))
 
 
 def fetch(bbox: tuple[float, float, float, float], force: bool = False) -> Path:
