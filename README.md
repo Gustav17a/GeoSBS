@@ -24,10 +24,10 @@ marcadores, mapa de calor e mapas coropléticos por bairro.
 
 | Etapa | Descrição | Módulo |
 |---|---|---|
-| Coleta | Malha Municipal 2025, Malha de Bairros e população do Censo 2022 (IBGE); pontos de interesse do OpenStreetMap (uma consulta Overpass, com cache) | `src/data_collection` |
+| Coleta | Malha Municipal 2025, Malha de Bairros e população do Censo 2022 (IBGE); pontos de interesse do OpenStreetMap (uma consulta Overpass, com cache); unidades públicas de saúde do CNES (Ministério da Saúde) para comparação | `src/data_collection` |
 | Processamento | Esquema padronizado, classificação em 8 categorias, validação de coordenadas, recorte pelo limite municipal, flags de dados ausentes, remoção de duplicatas | `src/data_processing` |
 | Geoprocessamento | Reprojeção (SIRGAS 2000 → UTM 22S / WGS 84), áreas em km², junção espacial ponto-em-polígono, geocodificação com Geopy/Nominatim | `src/geospatial` |
-| Análise | Quantidade, densidade (por km²), taxa por 10 mil habitantes e proximidade por bairro; área urbana × fora dos bairros; índice do vizinho mais próximo (Clark-Evans) por categoria com teste de significância de Monte Carlo | `src/analytics` |
+| Análise | Quantidade, densidade (por km²), taxa por 10 mil habitantes e proximidade por bairro; completude do OSM na saúde comparada com o CNES; área urbana × fora dos bairros; índice do vizinho mais próximo (Clark-Evans) por categoria com teste de significância de Monte Carlo | `src/analytics` |
 | Visualização | Mapa MapLibre GL JS: mapa vetorial, satélite, híbrido, relevo e 3D; ícones SVG por categoria; clusters com anel de composição; mapa de calor; coropléticos; popups; painel e legenda dinâmica. Versão clássica em Folium/Leaflet como alternativa | `src/visualization` |
 
 Categorias: Saúde · Educação · Farmácias · Segurança pública · Transporte ·
@@ -103,7 +103,7 @@ como `data/raw/osm_overpass_manual.json`.
 
 ```
 data/
-  raw/          respostas originais com data/hora (nunca editadas) + consulta Overpass
+  raw/          respostas originais com data/hora (nunca editadas): OSM, CNES e consulta Overpass
   shapefiles/   malhas (SC_Municipios_2025.zip, SC_bairros_CD2022.zip) e população do Censo 2022 (IBGE)
   processed/    pois.geojson, pois.csv, bairros.geojson
 output/

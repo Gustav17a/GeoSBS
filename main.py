@@ -19,7 +19,7 @@ import pandas as pd
 from config import settings
 from src.analytics import indicators
 from src.analytics.report import write_reports
-from src.data_collection import ibge, osm
+from src.data_collection import cnes, ibge, osm
 from src.data_processing.deduplicate import remove_duplicates
 from src.data_processing.normalize import osm_to_dataframe
 from src.data_processing.validate import validate
@@ -63,6 +63,14 @@ def run(refresh_osm: bool, refresh_ibge: bool, open_browser: bool,
     log.info("2/6 Coletando pontos no OpenStreetMap")
     bbox_web = municipio.to_crs(settings.CRS_WEB).total_bounds  # minx, miny, maxx, maxy
     raw_file = osm.fetch((bbox_web[1], bbox_web[0], bbox_web[3], bbox_web[2]), force=refresh_osm)
+    # CNES: fonte oficial de comparação (não entra nas contagens). Falha não interrompe o pipeline.
+    units = None
+    try:
+        units = cnes.load_units(cnes.fetch(force=refresh_osm), municipio)
+        log.info("    CNES: %d unidades públicas de saúde no município (cadastro com %d estabelecimentos)",
+                 len(units), units.attrs["cadastro_total"])
+    except Exception as exc:  # API fora do ar e sem cache: o mapa sai sem a camada do CNES
+        log.warning("    CNES indisponível (%s): o mapa será gerado sem a camada de comparação.", exc)
 
     log.info("3/6 Padronizando, validando e removendo duplicatas")
     df = osm_to_dataframe(raw_file)
@@ -88,6 +96,10 @@ def run(refresh_osm: bool, refresh_ibge: bool, open_browser: bool,
 
     log.info("4/6 Atribuindo bairros por junção espacial")
     pois = assign_bairro(pois, bairros)
+    if units is not None and not units.empty:
+        attrs = dict(units.attrs)
+        units = assign_bairro(units, bairros)
+        units.attrs = attrs
     settings.PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     pois.to_file(settings.PROCESSED_DIR / "pois.geojson", driver="GeoJSON")
     bairros.to_file(settings.PROCESSED_DIR / "bairros.geojson", driver="GeoJSON")
@@ -100,14 +112,16 @@ def run(refresh_osm: bool, refresh_ibge: bool, open_browser: bool,
     summary["regioes"] = indicators.regions(pois, municipio, table, pop_municipio)
     proximity = indicators.proximity(pois, bairros)
     patterns = indicators.spatial_patterns(pois, bairros)
-    for path in write_reports(summary, table, proximity, patterns, quality, duplicates, rejected):
+    summary["cnes"], cnes_detail = indicators.cnes_completeness(units, pois, table)
+    for path in write_reports(summary, table, proximity, patterns, quality, duplicates, rejected,
+                              cnes_detail=cnes_detail):
         log.info("    Relatório: %s", path.relative_to(settings.ROOT_DIR))
 
     log.info("6/6 Gerando mapas interativos")
     if (aviso := check_esri_key()):
         log.warning(aviso)
-    out = build_web_map(pois, municipio, table, summary, settings.MAP_OUTPUT_FILE)
-    classic = build_map(pois, municipio, table, summary, settings.MAP_CLASSIC_FILE)
+    out = build_web_map(pois, municipio, table, summary, settings.MAP_OUTPUT_FILE, cnes=cnes_detail)
+    classic = build_map(pois, municipio, table, summary, settings.MAP_CLASSIC_FILE, cnes=cnes_detail)
     log.info("Mapa principal (MapLibre): %s", out)
     log.info("Mapa clássico (Leaflet):   %s", classic)
     # Mantém a versão publicada no GitHub Pages igual à recém-gerada.

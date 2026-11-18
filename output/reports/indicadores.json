@@ -99,6 +99,213 @@
       },
       "populacao_municipio": 83277,
       "por_10mil_hab_municipio": 15.1
+    },
+    "cnes": {
+      "unidades": 33,
+      "unidades_no_osm": 6,
+      "por_grupo": {
+        "Atenção básica (UBS/ESF)": {
+          "cnes": 22,
+          "no_osm": 5
+        },
+        "Especializada e saúde mental": {
+          "cnes": 9,
+          "no_osm": 0
+        },
+        "Hospital e urgência": {
+          "cnes": 2,
+          "no_osm": 1
+        }
+      },
+      "atencao_basica": 22,
+      "atencao_basica_no_osm": 5,
+      "regra": {
+        "distancia_nome_m": 1000,
+        "distancia_sem_nome_m": 250
+      },
+      "bairros_sem_osm_com_cnes": [
+        "Alpino",
+        "Rio Vermelho Povoado"
+      ],
+      "por_bairro": [
+        {
+          "bairro": "Centro",
+          "cnes_unidades": 10,
+          "cnes_atencao_basica": 1,
+          "cnes_no_osm": 2,
+          "osm_saude": 6,
+          "osm_estabelecimentos": 44
+        },
+        {
+          "bairro": "Oxford",
+          "cnes_unidades": 0,
+          "cnes_atencao_basica": 0,
+          "cnes_no_osm": 0,
+          "osm_saude": 0,
+          "osm_estabelecimentos": 15
+        },
+        {
+          "bairro": "Serra Alta",
+          "cnes_unidades": 4,
+          "cnes_atencao_basica": 4,
+          "cnes_no_osm": 0,
+          "osm_saude": 1,
+          "osm_estabelecimentos": 11
+        },
+        {
+          "bairro": "Colonial",
+          "cnes_unidades": 2,
+          "cnes_atencao_basica": 2,
+          "cnes_no_osm": 1,
+          "osm_saude": 2,
+          "osm_estabelecimentos": 8
+        },
+        {
+          "bairro": "Centenário",
+          "cnes_unidades": 3,
+          "cnes_atencao_basica": 2,
+          "cnes_no_osm": 0,
+          "osm_saude": 0,
+          "osm_estabelecimentos": 8
+        },
+        {
+          "bairro": "Brasília",
+          "cnes_unidades": 1,
+          "cnes_atencao_basica": 1,
+          "cnes_no_osm": 0,
+          "osm_saude": 0,
+          "osm_estabelecimentos": 5
+        },
+        {
+          "bairro": "Boehmerwald",
+          "cnes_unidades": 1,
+          "cnes_atencao_basica": 1,
+          "cnes_no_osm": 1,
+          "osm_saude": 1,
+          "osm_estabelecimentos": 4
+        },
+        {
+          "bairro": "Mato Preto",
+          "cnes_unidades": 1,
+          "cnes_atencao_basica": 1,
+          "cnes_no_osm": 0,
+          "osm_saude": 0,
+          "osm_estabelecimentos": 4
+        },
+        {
+          "bairro": "Schramm",
+          "cnes_unidades": 1,
+          "cnes_atencao_basica": 1,
+          "cnes_no_osm": 1,
+          "osm_saude": 3,
+          "osm_estabelecimentos": 4
+        },
+        {
+          "bairro": "Progresso",
+          "cnes_unidades": 2,
+          "cnes_atencao_basica": 1,
+          "cnes_no_osm": 1,
+          "osm_saude": 1,
+          "osm_estabelecimentos": 3
+        },
+        {
+          "bairro": "Rio Negro",
+          "cnes_unidades": 0,
+          "cnes_atencao_basica": 0,
+          "cnes_no_osm": 0,
+          "osm_saude": 0,
+          "osm_estabelecimentos": 3
+        },
+        {
+          "bairro": "Cruzeiro",
+          "cnes_unidades": 2,
+          "cnes_atencao_basica": 2,
+          "cnes_no_osm": 0,
+          "osm_saude": 0,
+          "osm_estabelecimentos": 2
+        },
+        {
+          "bairro": "Lençol",
+          "cnes_unidades": 1,
+          "cnes_atencao_basica": 1,
+          "cnes_no_osm": 0,
+          "osm_saude": 0,
+          "osm_estabelecimentos": 1
+        },
+        {
+          "bairro": "Vinte e Cinco de Julho",
+          "cnes_unidades": 0,
+          "cnes_atencao_basica": 0,
+          "cnes_no_osm": 0,
+          "osm_saude": 0,
+          "osm_estabelecimentos": 1
+        },
+        {
+          "bairro": "Rio Vermelho - Estação",
+          "cnes_unidades": 1,
+          "cnes_atencao_basica": 1,
+          "cnes_no_osm": 0,
+          "osm_saude": 0,
+          "osm_estabelecimentos": 1
+        },
+        {
+          "bairro": "Bela Aliança",
+          "cnes_unidades": 1,
+          "cnes_atencao_basica": 1,
+          "cnes_no_osm": 0,
+          "osm_saude": 0,
+          "osm_estabelecimentos": 1
+        },
+        {
+          "bairro": "Industrial Sudoeste",
+          "cnes_unidades": 0,
+          "cnes_atencao_basica": 0,
+          "cnes_no_osm": 0,
+          "osm_saude": 0,
+          "osm_estabelecimentos": 0
+        },
+        {
+          "bairro": "Dona Francisca",
+          "cnes_unidades": 0,
+          "cnes_atencao_basica": 0,
+          "cnes_no_osm": 0,
+          "osm_saude": 0,
+          "osm_estabelecimentos": 0
+        },
+        {
+          "bairro": "Alpino",
+          "cnes_unidades": 1,
+          "cnes_atencao_basica": 1,
+          "cnes_no_osm": 0,
+          "osm_saude": 0,
+          "osm_estabelecimentos": 0
+        },
+        {
+          "bairro": "Rio Vermelho Povoado",
+          "cnes_unidades": 1,
+          "cnes_atencao_basica": 1,
+          "cnes_no_osm": 0,
+          "osm_saude": 0,
+          "osm_estabelecimentos": 0
+        },
+        {
+          "bairro": "Fora dos bairros oficiais",
+          "cnes_unidades": 1,
+          "cnes_atencao_basica": 1,
+          "cnes_no_osm": 0,
+          "osm_saude": 0,
+          "osm_estabelecimentos": 11
+        }
+      ],
+      "cadastro": {
+        "cadastro_total": 333,
+        "baixado_em": "2026-11-18T13:54:07",
+        "selecionadas": 38,
+        "sem_coordenada": 3,
+        "cadastro_duplicado": 1,
+        "fora_do_municipio": 1,
+        "no_mapa": 33
+      }
     }
   },
   "qualidade": {

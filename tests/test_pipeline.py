@@ -1,3 +1,5 @@
+import json
+
 import geopandas as gpd
 import pandas as pd
 import pytest
@@ -457,3 +459,114 @@ def test_maps_show_per_capita_and_ties(tmp_path, overpass_file, municipio, bairr
     md = (tmp_path / "resultados.md").read_text(encoding="utf-8")
     assert "Menor quantidade: **A, B**" in md            # empate: todos os bairros, não só um
     assert "Por 10 mil hab." in md and "50.0 *" in md      # taxa instável marcada
+
+
+# --- CNES: fonte oficial de comparação -----------------------------------------
+
+def _cnes_row(cnes, nome, tipo, lat, lon, natureza="1244", sus="SIM", bairro="CENTRO"):
+    return {"codigo_cnes": cnes, "codigo_estabelecimento_saude": f"421580{cnes:07d}", "nome_fantasia": nome,
+            "codigo_tipo_unidade": tipo, "descricao_natureza_juridica_estabelecimento": natureza,
+            "estabelecimento_faz_atendimento_ambulatorial_sus": sus, "endereco_estabelecimento": "RUA X",
+            "numero_estabelecimento": "10", "bairro_estabelecimento": bairro, "data_atualizacao": "2025-09-03",
+            "latitude_estabelecimento_decimo_grau": lat, "longitude_estabelecimento_decimo_grau": lon}
+
+
+def test_cnes_fetch_uses_page_number_as_offset(tmp_path, monkeypatch):
+    """A API do CNES usa `offset` como número da página; para quando a página vem incompleta."""
+    from config import settings
+    from src.data_collection import cnes
+    monkeypatch.setattr(settings, "RAW_DIR", tmp_path)
+    monkeypatch.setattr(settings, "CNES_PAUSE_S", 0)
+    pages = {0: [_cnes_row(i, f"U{i}", 2, -26.25, -49.39) for i in range(20)],
+             1: [_cnes_row(99, "U99", 2, -26.25, -49.39)]}
+    seen = []
+
+    class Resp:
+        def __init__(self, rows): self.rows = rows
+        def raise_for_status(self): pass
+        def json(self): return {"estabelecimentos": self.rows}
+
+    def fake_get(url, params, headers, timeout):
+        seen.append(params["offset"])
+        return Resp(pages.get(params["offset"], []))
+    monkeypatch.setattr(cnes.requests, "get", fake_get)
+    path = cnes.fetch()
+    assert seen == [0, 1]
+    assert len(json.loads(path.read_text(encoding="utf-8"))["estabelecimentos"]) == 21
+    monkeypatch.setattr(cnes.requests, "get", lambda *a, **k: (_ for _ in ()).throw(AssertionError("sem cache")))
+    assert cnes.fetch() == path                                   # segunda vez: usa o cache
+
+
+def test_cnes_load_units_filters_public_care(tmp_path, municipio):
+    from src.data_collection import cnes
+    rows = [
+        _cnes_row(1, "ESTRATEGIA SAUDE DA FAMILIA OESTE", 2, -26.255, -49.395),   # pública: entra
+        _cnes_row(2, "CONSULTORIO PARTICULAR", 22, -26.255, -49.395, natureza="2062"),  # consultório: fora
+        _cnes_row(3, "CLINICA PRIVADA", 36, -26.255, -49.395, natureza="2062"),    # especializada privada: fora
+        _cnes_row(4, "HOSPITAL FILANTROPICO", 5, -26.252, -49.385, natureza="3999"),  # hospital SUS: entra
+        _cnes_row(5, "UPA X", 2, -26.245, -49.385), _cnes_row(6, "UPA X", 73, -26.245, -49.385),  # duplicado
+        _cnes_row(7, "ESF SEM COORDENADA", 2, None, None),
+        _cnes_row(8, "ESF NO VIZINHO", 2, -26.10, -49.10),                         # fora do município
+    ]
+    path = tmp_path / "cnes.json"
+    path.write_text(json.dumps({"estabelecimentos": rows, "baixado_em": "2026-11-18"}), encoding="utf-8")
+    u = cnes.load_units(path, municipio)
+    assert sorted(u["cnes"]) == ["0000001", "0000004", "0000006"]   # a UPA fica com o tipo 73
+    assert u.attrs | {"cadastro_total": 8} == u.attrs
+    assert (u.attrs["sem_coordenada"], u.attrs["cadastro_duplicado"], u.attrs["fora_do_municipio"]) == (1, 1, 1)
+    assert set(u["grupo"]) == {"Atenção básica (UBS/ESF)", "Hospital e urgência"}
+    assert "Estrategia Saude da Familia Oeste" in set(u["nome"])
+
+
+def test_cnes_matching_rule():
+    """Mesmo prédio não basta (precisa de nome em comum); nome igual tolera coordenadas divergentes."""
+    from shapely.geometry import Point
+    to_m = lambda pts: gpd.GeoDataFrame(geometry=[Point(x, y) for x, y in pts], crs="EPSG:31982")
+    osm = to_m([(1000, 1000), (5000, 5000), (9000, 9000)]).assign(
+        nome=["Posto de Saúde Central", "Posto de Saúde da Vila 1º de Maio", None])
+    units = to_m([(1005, 1000), (1003, 1000), (5375, 5000), (9072, 9000), (9050, 9000)]).assign(
+        nome=["Unidade Basica Central", "CEO Centro de Especialidades Odontologicas",
+              "Estrategia Saude da Familia 1 de Maio", "ESF Progresso", "CAPS Centro de Atencao Psicossocial"],
+        grupo=["Atenção básica (UBS/ESF)", "Especializada e saúde mental", "Atenção básica (UBS/ESF)",
+               "Atenção básica (UBS/ESF)", "Especializada e saúde mental"])
+    m = indicators.match_cnes_to_osm(units, osm)
+    assert m["no_osm"].tolist() == [True, False, True, True, False]
+    assert m["criterio"].fillna("—").tolist()[:4] == ["nome e distância", "—", "nome e distância", "distância"]
+
+
+def test_cnes_completeness_and_outputs(tmp_path, overpass_file, municipio, bairros):
+    import re
+    from src.analytics.report import write_reports
+    from src.data_collection import cnes
+    from src.visualization.map_builder import build_map
+    from src.visualization.maplibre_builder import build_web_map
+    pois, rejected, quality, dups = _processed(overpass_file, municipio, bairros)
+    rows = [_cnes_row(1, "UNIDADE BASICA VAZIO", 2, -26.245, -49.39),      # bairro "Vazio" (sem OSM)
+            _cnes_row(2, "CLINICA LESTE", 2, -26.2551, -49.3851)]          # ao lado da clínica do OSM
+    path = tmp_path / "cnes.json"
+    path.write_text(json.dumps({"estabelecimentos": rows}), encoding="utf-8")
+    units = cnes.load_units(path, municipio)
+    attrs = dict(units.attrs)
+    units = assign_bairro(units, bairros); units.attrs = attrs
+    table = indicators.by_bairro(pois, bairros)
+    s = indicators.summary(pois, table)
+    s["cnes"], detail = indicators.cnes_completeness(units, pois, table)
+    assert s["cnes"]["bairros_sem_osm_com_cnes"] == ["Vazio"]
+    assert s["cnes"]["unidades"] == 2 and s["cnes"]["cadastro"]["cadastro_total"] == 2
+    assert s["total_estabelecimentos"] == 3                                 # CNES fora das contagens
+
+    html_web = build_web_map(pois, municipio, table, s, tmp_path / "w.html", cnes=detail).read_text(encoding="utf-8")
+    data = json.loads(re.search(r"const GEO = (\{.*?\});\n", html_web, flags=re.S).group(1))
+    assert len(data["cnes"]["features"]) == 2 and 'id="optCnes"' in html_web
+    assert {f["properties"]["nome"]: f["properties"].get("cnes") for f in data["bairros"]["features"]}["Vazio"] == 1
+    classic = build_map(pois, municipio, table, s, tmp_path / "c.html", cnes=detail).read_text(encoding="utf-8")
+    assert "CNES, compara" in classic
+    write_reports(s, table, pd.DataFrame(), pd.DataFrame(), {"registros_finais": len(pois)}, dups, rejected,
+                  out_dir=tmp_path, cnes_detail=detail)
+    assert (tmp_path / "cnes_unidades.csv").exists()
+    assert "Completude do OSM na saúde" in (tmp_path / "resultados.md").read_text(encoding="utf-8")
+
+
+def test_web_map_without_cnes_has_no_layer(tmp_path, overpass_file, municipio, bairros):
+    _, html_web, data = _web_map(tmp_path, overpass_file, municipio, bairros)
+    assert data["cnes"]["features"] == [] and 'id="optCnes"' not in html_web

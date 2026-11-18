@@ -280,3 +280,110 @@ def _pick(row: pd.Series | None, field: str, table: gpd.GeoDataFrame | None = No
         if len(tied) > 1:
             out["empatados"] = tied
     return out
+
+
+_GENERIC_WORDS = {
+    "a", "ao", "da", "das", "de", "do", "dos", "e", "em", "na", "no", "o",
+    "posto", "unidade", "basica", "saude", "estrategia", "familia", "programa", "centro",
+    "atendimento", "atencao", "clinica", "medica", "hospital", "vila", "doutor", "doutora",
+    "dr", "dra", "sus", "esf", "ubs", "psf", "municipal", "sao", "bento", "sul",
+}
+
+
+def _name_tokens(name) -> set[str]:
+    """Palavras próprias de um nome (sem acento, sem palavras genéricas da saúde)."""
+    import re
+    import unicodedata
+    if not isinstance(name, str):
+        return set()
+    text = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode().lower()
+    text = text.replace("º", "").replace("ª", "")
+    return {w for w in re.findall(r"[a-z0-9]+", text) if w not in _GENERIC_WORDS}
+
+
+def match_cnes_to_osm(units: gpd.GeoDataFrame, saude: gpd.GeoDataFrame) -> pd.DataFrame:
+    """Para cada unidade do CNES, procura o registro de saúde correspondente no OSM.
+
+    Regra (conferida nos pares reais de São Bento do Sul):
+    - registro do OSM COM nome: corresponde se os nomes têm ao menos uma palavra
+      própria em comum (ex.: "1 de Maio", "Central", "UPA") e a distância é de até
+      settings.CNES_NAME_MATCH_M; só a distância não basta, porque unidades
+      diferentes dividem o mesmo prédio (ex.: CEO e Posto Central);
+    - registro do OSM SEM nome: corresponde se está a até settings.CNES_MATCH_M e a
+      unidade é de atenção básica (no OSM, postos sem nome são o caso comum).
+    """
+    metric = settings.CRS_METRIC
+    u = units.to_crs(metric)
+    s = saude.to_crs(metric).reset_index(drop=True)
+    s_tokens = [_name_tokens(n) for n in s["nome"]]
+    s_named = [isinstance(n, str) and n.strip() != "" for n in s["nome"]]
+    rows = []
+    for geom, nome, grupo in zip(u.geometry, u["nome"], u["grupo"]):
+        dists = s.distance(geom) if len(s) else pd.Series(dtype=float)
+        tokens = _name_tokens(nome)
+        best = None
+        for i in dists.sort_values().index:
+            d = float(dists[i])
+            if d > settings.CNES_NAME_MATCH_M:
+                break
+            if s_named[i] and tokens & s_tokens[i]:
+                best = (s.loc[i, "nome"], d, "nome e distância"); break
+            if (not s_named[i] and d <= settings.CNES_MATCH_M
+                    and grupo == settings.CNES_GRUPO_BASICA):
+                best = ("(registro sem nome)", d, "distância"); break
+        nearest = (float(dists.min()) if len(dists) else np.nan)
+        rows.append({"osm_correspondente": best[0] if best else None,
+                     "dist_osm_m": round(best[1]) if best else None,
+                     "criterio": best[2] if best else None,
+                     "dist_saude_osm_mais_proxima_m": round(nearest) if nearest == nearest else None,
+                     "no_osm": best is not None})
+    return pd.DataFrame(rows, index=units.index)
+
+
+def cnes_completeness(units: gpd.GeoDataFrame, pois: gpd.GeoDataFrame,
+                      table: gpd.GeoDataFrame) -> tuple[dict, pd.DataFrame]:
+    """Compara as unidades públicas de saúde do CNES com os registros de saúde do OSM.
+
+    O CNES NÃO entra nas contagens: serve para medir o quanto o OSM cobre a rede
+    pública. Consultórios odontológicos do OSM ficam fora da comparação, porque
+    não são unidades da rede pública. Retorna o resumo (JSON) e a tabela por
+    unidade (CSV).
+    """
+    if units is None or units.empty:
+        return {}, pd.DataFrame()
+    saude = pois[(pois["categoria"] == "saude") & (pois["subcategoria"] != "amenity=dentist")]
+    u = units.copy()
+    u = u.join(match_cnes_to_osm(u, saude))
+
+    basica = u[u["grupo"] == settings.CNES_GRUPO_BASICA]
+    est = establishments(pois)
+    rows = []
+    for nome in [*table["NM_BAIRRO"], FORA_DE_BAIRRO]:
+        nu, ns = u[u["bairro"] == nome], est[(est["bairro"] == nome) & (est["categoria"] == "saude")]
+        rows.append({"bairro": nome, "cnes_unidades": int(len(nu)),
+                     "cnes_atencao_basica": int((nu["grupo"] == settings.CNES_GRUPO_BASICA).sum()),
+                     "cnes_no_osm": int(nu["no_osm"].sum()),
+                     "osm_saude": int(len(ns)),
+                     "osm_estabelecimentos": int((est["bairro"] == nome).sum())})
+    by_bairro = pd.DataFrame(rows)
+    vazios = by_bairro[(by_bairro["osm_estabelecimentos"] == 0) & (by_bairro["cnes_unidades"] > 0)
+                       & (by_bairro["bairro"] != FORA_DE_BAIRRO)]
+    grupos = {}
+    for g, sub in u.groupby("grupo"):
+        grupos[g] = {"cnes": int(len(sub)), "no_osm": int(sub["no_osm"].sum())}
+    summary = {
+        "unidades": int(len(u)),
+        "unidades_no_osm": int(u["no_osm"].sum()),
+        "por_grupo": grupos,
+        "atencao_basica": int(len(basica)),
+        "atencao_basica_no_osm": int(basica["no_osm"].sum()),
+        "regra": {"distancia_nome_m": settings.CNES_NAME_MATCH_M, "distancia_sem_nome_m": settings.CNES_MATCH_M},
+        "bairros_sem_osm_com_cnes": vazios["bairro"].tolist(),
+        "por_bairro": by_bairro.to_dict("records"),
+        "cadastro": dict(units.attrs),
+    }
+    detail = pd.DataFrame(u.drop(columns="geometry"))[
+        ["cnes", "nome", "grupo", "bairro", "bairro_cnes", "endereco", "atende_sus", "atualizado_em",
+         "lat", "lon", "no_osm", "osm_correspondente", "dist_osm_m", "criterio",
+         "dist_saude_osm_mais_proxima_m"]]
+    return summary, detail.sort_values(["grupo", "bairro", "nome"]).reset_index(drop=True)

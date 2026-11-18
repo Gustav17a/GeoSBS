@@ -72,6 +72,15 @@
       {% endif %}
     </div>
 
+    {% if s.cnes and s.cnes.unidades %}
+    <div class="geo-section">
+      <h2>Comparação com o CNES (saúde)</h2>
+      <p style="margin:0;font-size:12px">{{ s.cnes.atencao_basica_no_osm }} de {{ s.cnes.atencao_basica }} postos públicos de atenção básica do CNES aparecem no OpenStreetMap.
+      {% if s.cnes.bairros_sem_osm_com_cnes %}Bairros sem registro no OSM, mas com unidade no CNES: <b>{{ s.cnes.bairros_sem_osm_com_cnes|join(", ") }}</b>.{% endif %}
+      Ative a camada "Unidades públicas de saúde (CNES)" no seletor de camadas.</p>
+    </div>
+    {% endif %}
+
     <div class="geo-section">
       <h2>Categorias · filtrar no mapa</h2>
       {% for c in categories %}

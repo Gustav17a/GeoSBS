@@ -61,6 +61,33 @@ IBGE_POP_MUNICIPIOS_URL = (
 PER_CAPITA_BASE = 10_000
 POP_MIN_TAXA = 500
 
+# --- CNES (Ministério da Saúde) — fonte oficial de comparação ------------------
+# API pública de dados abertos. `offset` é o número da PÁGINA (0, 1, 2...), não o
+# número de registros, e cada página tem no máximo 20 estabelecimentos.
+# Código do município no CNES/DATASUS: 6 primeiros dígitos do código do IBGE.
+CNES_API_URL = "https://apidadosabertos.saude.gov.br/cnes/estabelecimentos"
+CNES_MUNICIPIO = MUNICIPIO_CODIGO_IBGE[:6]
+CNES_PAGE_SIZE = 20
+CNES_PAUSE_S = 1.0          # uma página por vez, com pausa (respeito à API pública)
+# Unidades de atendimento da rede pública: tipo de unidade do CNES -> grupo exibido.
+# Consultórios (22), laboratórios (39), unidades móveis (40, 42) e centrais de
+# gestão/logística (43, 68, 77, 81, 83, 84) ficam de fora: não são pontos de
+# atendimento comparáveis aos registros de saúde do OpenStreetMap.
+CNES_GRUPOS = {
+    1: "Atenção básica (UBS/ESF)", 2: "Atenção básica (UBS/ESF)",
+    4: "Especializada e saúde mental", 36: "Especializada e saúde mental",
+    62: "Especializada e saúde mental", 70: "Especializada e saúde mental",
+    5: "Hospital e urgência", 7: "Hospital e urgência", 15: "Hospital e urgência",
+    20: "Hospital e urgência", 21: "Hospital e urgência", 73: "Hospital e urgência",
+}
+CNES_GRUPO_BASICA = "Atenção básica (UBS/ESF)"
+# Correspondência CNES x OSM (ver indicators.match_cnes_to_osm):
+# - registro do OSM sem nome: até CNES_MATCH_M metros (pares conferidos: 72 e 103 m);
+# - registro do OSM com nome: palavra própria em comum e até CNES_NAME_MATCH_M metros
+#   (o mesmo posto "1º de Maio" está a 375 m entre as duas fontes).
+CNES_MATCH_M = 250
+CNES_NAME_MATCH_M = 1000
+
 # --- OpenStreetMap / Overpass --------------------------------------------------
 # Instâncias públicas, tentadas em ordem. Respeitar a política de uso:
 # uma consulta por coleta, sem paralelismo, com cache local.

@@ -29,6 +29,7 @@ HEAT_LAYER = "Mapa de calor (estabelecimentos)"
 CHORO_COUNT = "Coroplético: quantidade por bairro"
 CHORO_DENSITY = "Coroplético: densidade (por km²)"
 CHORO_PER_CAPITA = "Coroplético: por 10 mil habitantes"
+CNES_LAYER = "Unidades públicas de saúde (CNES, comparação)"
 # Paleta sequencial (azul-esverdeado claro → escuro), legível para daltônicos.
 # Ícone da aba (SVG embutido, sem requisição extra); o mesmo do mapa principal.
 FAVICON = '<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%23111827%22/%3E%3Cpath%20d%3D%22M32%2012c-8.3%200-15%206.5-15%2014.6C17%2037.5%2032%2052%2032%2052s15-14.5%2015-25.4C47%2018.5%2040.3%2012%2032%2012z%22%20fill%3D%22%2322d3ee%22/%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2226.5%22%20r%3D%225.5%22%20fill%3D%22%23111827%22/%3E%3C/svg%3E">'
@@ -118,8 +119,24 @@ def _choropleth(m, table, field, name, breaks, fmt):
     ).add_to(m)
 
 
+def _cnes_layer(m, cnes: pd.DataFrame) -> None:
+    """Unidades públicas de saúde do CNES: camada de comparação, desligada ao abrir."""
+    group = folium.FeatureGroup(name=CNES_LAYER, show=False).add_to(m)
+    for r in cnes.itertuples(index=False):
+        no_osm = (f"sim ({html.escape(str(r.osm_correspondente))}, {r.dist_osm_m:.0f} m)"
+                  if r.no_osm else "<b>não</b>")
+        popup = (f"<b>{html.escape(str(r.nome))}</b><br><i>{html.escape(str(r.grupo))} · CNES {r.cnes}</i><br>"
+                 f"Endereço: {html.escape(str(r.endereco or 'não informado'))}<br>"
+                 f"Bairro (IBGE): {html.escape(str(r.bairro))}<br>No OSM: {no_osm}")
+        folium.Marker([r.lat, r.lon], tooltip=f"{r.nome} (CNES)",
+                      popup=folium.Popup(popup, max_width=300),
+                      icon=folium.Icon(color="white", icon_color="#e34948", icon="plus-square", prefix="fa"),
+                      ).add_to(group)
+
+
 def build_map(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame,
-              table: gpd.GeoDataFrame, summary: dict, output: Path) -> Path:
+              table: gpd.GeoDataFrame, summary: dict, output: Path,
+              cnes: pd.DataFrame | None = None) -> Path:
     cats = load_categories()
     labels = {c.id: c.label for c in cats}
     pois = pois.copy()
@@ -185,6 +202,9 @@ def build_map(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame,
         category_layers.append(f"{cat.label} (")
         panel_categories.append({"label": cat.label, "hex": cat.hex, "count": n_est,
                                  "layer": f"{cat.label} (", "pct": round(100 * n_est / max_count)})
+
+    if cnes is not None and not cnes.empty:
+        _cnes_layer(m, cnes)
 
     HeatMap(est[["lat", "lon"]].to_numpy().tolist(), name=HEAT_LAYER, show=False,
             radius=18, blur=22, min_opacity=0.25).add_to(m)

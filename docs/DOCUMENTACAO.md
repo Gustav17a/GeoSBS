@@ -106,10 +106,11 @@ agregados por áreas dependem do recorte adotado, o Problema da Unidade de Área
 | Aquisição | Download da Malha Municipal 2025 e da Malha de Bairros do Censo 2022 (IBGE, *shapefile*) e da população residente do Censo 2022 por bairro e por município (IBGE, *Agregados por bairros/municípios – básico*, variável V0001 = total de pessoas, ligada aos bairros pelo código `CD_BAIRRO`); consulta única à Overpass API do OSM pelo retângulo envolvente do município, salva com data e hora em `data/raw/`. |
 | Classificação | Regras de tags OSM → 8 categorias (`config/categories.json`), com condições opcionais por regra (ex.: centro comunitário só é serviço público com operador público); elementos que não casam são descartados e contados no relatório de qualidade. |
 | Validação | Coordenadas ausentes ou fora da faixa → rejeitadas; pontos fora do polígono municipal (tolerância de 50 m) → rejeitados; nome/endereço ausentes → mantidos com sinalização. Endereços ausentes recebem a rua mais próxima por geocodificação reversa (Nominatim, 1 requisição/s, com cache), marcada como aproximada. |
+| Comparação oficial (saúde) | Unidades de atendimento da rede pública do CNES (API de dados abertos do Ministério da Saúde, uma página por vez com pausa de 1 s, cache em `data/raw/`): UBS/ESF, CAPS, UPA, centros especializados municipais e hospitais que atendem pelo SUS; consultórios, laboratórios, unidades móveis e centrais de gestão ficam de fora. Correspondência com o OSM: registro com nome → palavra própria em comum e até 1 km; registro sem nome → até 250 m (só atenção básica). O CNES não entra nas contagens: mede a completude do OSM. |
 | Deduplicação | Mesma categoria, distância ≤ 75 m e similaridade de nome ≥ 0,85; mantém-se o registro mais completo. |
 | Análise espacial | Junção ponto-em-polígono para atribuir bairro; área em km² na projeção UTM 22S; densidade = registros/km²; taxa por habitante = registros por 10 mil moradores (bairros com menos de 500 moradores marcados como taxa instável e excluídos dos destaques de maior/menor); proximidade = distância em linha reta do ponto representativo do bairro à unidade mais próxima; índice de Clark-Evans por categoria com teste de Monte Carlo (999 sorteios na área dos bairros, p < 0,05); região "fora dos bairros" (município − bairros) com quantidade, densidade e população próprias. |
 | Visualização | MapLibre GL JS: mapa vetorial (OpenFreeMap/OSM), satélite Esri World Imagery (alta resolução, com chave) ou Sentinel-2 (EOxCloudless), relevo sombreado e hipsométrico e terreno 3D a partir de elevação real (SRTM/GMTED2010); ícones SVG por categoria, clusters, mapa de calor, coropléticos e painel HTML/CSS/JS. Versão clássica em Folium (Leaflet) como alternativa sem WebGL. |
-| Verificação | 51 testes automatizados (pytest); conferência da área calculada com a oficial e da população do município (83.277) com o total oficial do Censo 2022; teste de interface automatizado num navegador real (`tests/ui/run_ui_tests.py`, 22 verificações: enquadramento, navegação, filtros, mapa de calor, três coropléticos, mapas-base, popups, clusters e 3D); inspeção visual do mapa. |
+| Verificação | 56 testes automatizados (pytest); conferência da área calculada com a oficial e da população do município (83.277) com o total oficial do Censo 2022; teste de interface automatizado num navegador real (`tests/ui/run_ui_tests.py`, 26 verificações: enquadramento, navegação, filtros, mapa de calor, três coropléticos, mapas-base, camada do CNES, popups, clusters e 3D); inspeção visual do mapa. |
 
 Paradas de ônibus são exibidas no mapa, mas excluídas das contagens de estabelecimentos e do
 mapa de calor, para não distorcer a comparação entre bairros.
@@ -263,6 +264,31 @@ estabelecimentos por 10 mil habitantes, abaixo da média municipal; Cruzeiro, o 
 marcados como **taxa instável**: Bela Aliança chegaria a 20,5 com um único registro. A tabela
 completa está em `output/reports/resultados.md`.
 
+**Completude do OSM na saúde (comparação com o CNES)** — o cadastro oficial do município tem
+333 estabelecimentos de saúde; 38 são unidades de atendimento da rede pública. Sem coordenada
+(3), cadastro duplicado (1, a UPA cadastrada duas vezes) e fora do município (1) ficam de fora:
+**33 unidades no mapa**, numa camada própria que não entra nas contagens
+(`output/reports/cnes_unidades.csv`).
+
+| Unidades públicas de saúde | No CNES | Com registro correspondente no OSM |
+|---|---:|---:|
+| Atenção básica (UBS/ESF) | 22 | **5** |
+| Especializada e saúde mental (CAPS, CEO, CEM etc.) | 9 | 0 |
+| Hospital e urgência | 2 | 1 |
+
+Só **5 dos 22 postos de atenção básica** aparecem no OpenStreetMap (Central, 25 de Julho,
+1º de Maio, Progresso e Boehmerwald). Dois bairros que pareciam vazios têm posto público de
+saúde no cadastro oficial: **Alpino** (ESF 7 Alpino) e **Rio Vermelho Povoado** (ESF Rio
+Vermelho Povoado); a lacuna é do OSM, não da cidade. Industrial Sudoeste (93 moradores, área
+industrial) e Dona Francisca continuam sem nenhuma unidade pública de saúde nas duas fontes.
+
+A comparação também mostrou um erro na fonte oficial: a UPA tem no CNES o endereço "Rua João
+Pauli, esquina com a Av. São Bento" (Colonial), mas a coordenada cai no Centro, a 2,8 km do
+ponto do OSM, que confere com o endereço. Por isso a UPA conta como não encontrada, e o dado
+oficial não foi corrigido à mão. A regra de correspondência foi ajustada nos pares reais:
+distância sozinha não basta (o CEO e o Posto Central funcionam no mesmo prédio, a 5 m), e o
+mesmo posto pode ter coordenadas diferentes nas duas fontes (1º de Maio: 375 m).
+
 **Proximidade** — distância em linha reta (m) do ponto representativo de cada bairro até a
 unidade mais próxima (`output/reports/proximidade.csv`):
 
@@ -356,7 +382,12 @@ do limite do bairro.
 ## 12. Limitações encontradas
 
 - **Completude do OSM:** o mapa reflete o que foi mapeado. Ausência de registros não significa
-  ausência de serviço.
+  ausência de serviço. Na saúde isso foi medido: só 5 dos 22 postos públicos de atenção básica
+  do CNES estão no OSM, e dois bairros "vazios" (Alpino e Rio Vermelho Povoado) têm posto.
+- **Coordenadas do CNES:** são informadas pelo próprio estabelecimento. A da UPA está 2,8 km
+  fora do endereço; a ESF Alpino tem bairro "Lençol" no cadastro, mas a coordenada cai no
+  bairro Alpino do IBGE. A correspondência CNES × OSM é por nome e distância e pode falhar em
+  nomes muito diferentes.
 - **Bairros do IBGE:** são aproximados por setores censitários e cobrem só a área urbana; podem
   diferir dos limites da lei municipal. Não foi encontrado *shapefile* oficial da Prefeitura.
 - **Proximidade em linha reta:** não considera ruas, relevo (relevante em São Bento do Sul),
@@ -409,8 +440,10 @@ os conceitos da disciplina: SIG, sistemas de referência, *shapefiles*, geocodif
 marcadores, agrupamento, camadas, mapas de calor e coropléticos. O principal aprendizado
 metodológico é que os dados espaciais exigem validação explícita e interpretação cuidadosa.
 Distinguir quantidade, densidade e proximidade e declarar as limitações das fontes é o que
-transforma um mapa em informação confiável. Trabalhos futuros: integrar o CNES (saúde) e o
-Catálogo de Escolas do INEP, cruzar a taxa por habitante com a faixa etária (escolas por
+transforma um mapa em informação confiável. A comparação com o CNES mostrou, com números, que a
+ausência de registros no OSM não é ausência de serviço. Trabalhos futuros: comparar a educação
+com o Catálogo de Escolas do INEP, contribuir com os postos de saúde que faltam no próprio
+OpenStreetMap, cruzar a taxa por habitante com a faixa etária (escolas por
 crianças, por exemplo) e medir a acessibilidade pela rede viária.
 
 ## 14. Referências
@@ -449,6 +482,10 @@ IBGE. *Censo Demográfico 2022: Agregados por Setores Censitários — Agregados
 municípios (básico)*. Rio de Janeiro: IBGE, 2026. Disponível em:
 https://ftp.ibge.gov.br/Censos/Censo_Demografico_2022/Agregados_por_Setores_Censitarios/.
 Acesso em: 18 nov. 2026.
+
+BRASIL. Ministério da Saúde. *Cadastro Nacional de Estabelecimentos de Saúde (CNES) — API de
+dados abertos*. Brasília: DATASUS. Disponível em:
+https://apidadosabertos.saude.gov.br/cnes/estabelecimentos. Acesso em: 18 nov. 2026.
 
 LONGLEY, P. A.; GOODCHILD, M. F.; MAGUIRE, D. J.; RHIND, D. W. *Geographic information
 science and systems*. 4. ed. Hoboken: Wiley, 2015.

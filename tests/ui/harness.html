@@ -60,6 +60,25 @@ f.onload = async () => {
     const src = m.getSource("sat");
     R.fonteSatelite = src ? (src.tiles[0].includes("ibasemaps") ? "esri" : "sentinel2") : "nenhuma";
 
+    // Camada de comparação do CNES: desligada ao abrir; ligada mostra todas as unidades e não muda as contagens.
+    if (m.getLayer("cnes")) {
+      const antes = m.getLayoutProperty("cnes", "visibility");
+      doc.querySelector(".ctrl-home").click(); await sleep(1600); await idle();
+      w.geoCnes(true); await idle(); await sleep(800);
+      R.cnes = { aoAbrir: antes, total: GEO.cnes.features.length,
+                 visiveis: new Set(m.queryRenderedFeatures({ layers: ["cnes"] }).map(x => x.properties.cnes)).size,
+                 legenda: /CNES/.test(doc.querySelector("#legend").innerText),
+                 contagensIguais: (await estavel()) === total };
+      const alpino = GEO.cnes.features.find(x => /Alpino/.test(x.properties.nome));
+      m.jumpTo({ center: alpino.geometry.coordinates, zoom: 16 }); await idle();
+      m.fire("click", { point: m.project(alpino.geometry.coordinates), lngLat: alpino.geometry.coordinates, originalEvent: {} });
+      await sleep(600);
+      const pop = (doc.querySelector(".maplibregl-popup-content") || {}).innerText || "";
+      R.cnes.popupAlpino = /Alpino/.test(pop) && /No OSM\?/.test(pop);
+      doc.querySelectorAll(".maplibregl-popup").forEach(p => p.remove());
+      w.geoCnes(false); await idle();
+    }
+
     m.jumpTo({ center: [-49.3846, -26.2497], zoom: 17 }); await idle();
     const hosp = m.queryRenderedFeatures({ layers: ["pois"] }).find(x => /Sagrada/.test(x.properties.nome));
     if (hosp) m.fire("click", { point: m.project(hosp.geometry.coordinates), lngLat: hosp.geometry.coordinates, originalEvent: {} });

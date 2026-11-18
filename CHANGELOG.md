@@ -2,6 +2,17 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## [1.4.0] — 2026-11-18
+### Adicionado
+- Comparação com o CNES (Ministério da Saúde): 33 unidades públicas de saúde numa camada
+  própria (desligada ao abrir, fora das contagens), com balão, legenda e opção em Camadas, nos
+  dois mapas.
+- Completude do OSM na saúde: 5 de 22 postos de atenção básica do CNES estão no OSM; bairros
+  "vazios" com posto público (Alpino, Rio Vermelho Povoado); tabela por bairro e
+  `cnes_unidades.csv`.
+- Regra de correspondência CNES × OSM por nome e distância, ajustada em pares reais.
+- 56 testes automatizados; teste de interface com 26 verificações.
+
 ## [1.3.0] — 2026-11-18
 ### Adicionado
 - População do Censo 2022 por bairro e município (IBGE, Agregados – básico, V0001), baixada

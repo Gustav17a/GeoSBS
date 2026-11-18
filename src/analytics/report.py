@@ -70,9 +70,45 @@ def _extremes_md(s: dict) -> list[str]:
     return lines
 
 
+def _cnes_md(c: dict) -> list[str]:
+    cad = c.get("cadastro", {})
+    grupos = pd.DataFrame([{"Grupo": g, "Unidades no CNES": v["cnes"], "Encontradas no OSM": v["no_osm"]}
+                           for g, v in c["por_grupo"].items()])
+    bairros = pd.DataFrame(c["por_bairro"]).rename(columns={
+        "bairro": "Bairro", "cnes_unidades": "CNES (unidades públicas)",
+        "cnes_atencao_basica": "CNES atenção básica", "cnes_no_osm": "CNES encontradas no OSM",
+        "osm_saude": "OSM saúde", "osm_estabelecimentos": "OSM (todos)"})
+    vazios = ", ".join(c["bairros_sem_osm_com_cnes"]) or "nenhum"
+    return [
+        "## Completude do OSM na saúde (comparação com o CNES)",
+        f"Fonte oficial: CNES, API de dados abertos do Ministério da Saúde (baixado em {cad.get('baixado_em')}). "
+        f"O cadastro do município tem {cad.get('cadastro_total')} estabelecimentos; foram selecionadas "
+        f"{cad.get('selecionadas')} unidades de atendimento da rede pública (UBS/ESF, CAPS, UPA, centros "
+        f"especializados municipais e hospitais que atendem pelo SUS). Sem coordenada: {cad.get('sem_coordenada')}; "
+        f"cadastro duplicado: {cad.get('cadastro_duplicado')}; fora do município: {cad.get('fora_do_municipio')}. "
+        f"No mapa: **{c['unidades']}**. O CNES não entra nas contagens de estabelecimentos.",
+        "",
+        f"- Atenção básica: **{c['atencao_basica_no_osm']} de {c['atencao_basica']}** unidades do CNES "
+        "têm registro correspondente no OSM.",
+        f"- Todas as unidades: {c['unidades_no_osm']} de {c['unidades']}.",
+        f"- Bairros sem nenhum registro no OSM, mas com unidade pública de saúde no CNES: **{vazios}**.",
+        "",
+        _md_table(grupos),
+        "",
+        _md_table(bairros),
+        "",
+        f"_Correspondência: registro do OSM com nome → ao menos uma palavra própria em comum e até "
+        f"{c['regra']['distancia_nome_m']} m; registro sem nome → até {c['regra']['distancia_sem_nome_m']} m "
+        "(só atenção básica). Coordenadas do CNES são informadas pelo próprio estabelecimento e podem ter erro; "
+        "detalhes por unidade em `cnes_unidades.csv`._",
+        "",
+    ]
+
+
 def write_reports(summary: dict, table: gpd.GeoDataFrame, proximity: pd.DataFrame,
                   patterns: pd.DataFrame, quality: dict, duplicates: pd.DataFrame,
-                  rejected: pd.DataFrame, out_dir: Path = settings.REPORTS_DIR) -> list[Path]:
+                  rejected: pd.DataFrame, out_dir: Path = settings.REPORTS_DIR,
+                  cnes_detail: pd.DataFrame | None = None) -> list[Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     labels = {c.id: c.label for c in load_categories()}
     paths = []
@@ -91,6 +127,11 @@ def write_reports(summary: dict, table: gpd.GeoDataFrame, proximity: pd.DataFram
     if summary.get("regioes"):
         p = out_dir / "por_regiao.csv"
         pd.DataFrame(summary["regioes"]["tabela"]).to_csv(p, index=False, encoding="utf-8-sig", sep=";", decimal=",")
+        paths.append(p)
+
+    if cnes_detail is not None and not cnes_detail.empty:
+        p = out_dir / "cnes_unidades.csv"
+        cnes_detail.to_csv(p, index=False, encoding="utf-8-sig", sep=";", decimal=",")
         paths.append(p)
 
     p = out_dir / "proximidade.csv"
@@ -128,6 +169,7 @@ def write_reports(summary: dict, table: gpd.GeoDataFrame, proximity: pd.DataFram
         "",
         *(_regions_md(summary["regioes"]) if summary.get("regioes") else []),
         *_bairros_md(tab),
+        *(_cnes_md(summary["cnes"]) if summary.get("cnes") else []),
         "## Proximidade (ponto representativo do bairro → unidade mais próxima, em metros, linha reta)",
         _md_table(proximity.rename(columns={"NM_BAIRRO": "Bairro"})),
         "",

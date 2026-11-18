@@ -113,8 +113,29 @@ def focus_geometry(municipio: gpd.GeoDataFrame) -> tuple[dict, list[list[float]]
         {"type": "Feature", "geometry": shapely.geometry.mapping(mask), "properties": {}}]}, nav)
 
 
+def _with_cnes_count(fc: dict, counts: dict) -> dict:
+    if counts:
+        for f in fc["features"]:
+            f["properties"]["cnes"] = counts.get(f["properties"]["nome"], 0)
+    return fc
+
+
+def _cnes_features(cnes: pd.DataFrame | None) -> dict:
+    """Unidades do CNES (camada de comparação) como GeoJSON."""
+    feats = []
+    if cnes is not None and not cnes.empty:
+        for r in cnes.itertuples(index=False):
+            feats.append({"type": "Feature",
+                          "geometry": {"type": "Point", "coordinates": [round(float(r.lon), COORD_DECIMALS),
+                                                                         round(float(r.lat), COORD_DECIMALS)]},
+                          "properties": {k: _clean(getattr(r, k)) for k in (
+                              "cnes", "nome", "grupo", "bairro", "bairro_cnes", "endereco", "atende_sus",
+                              "atualizado_em", "no_osm", "osm_correspondente", "dist_osm_m", "lat", "lon")}})
+    return {"type": "FeatureCollection", "features": feats}
+
+
 def build_data(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame,
-               table: gpd.GeoDataFrame, summary: dict) -> dict:
+               table: gpd.GeoDataFrame, summary: dict, cnes: pd.DataFrame | None = None) -> dict:
     """Reúne tudo o que o mapa precisa num único dicionário serializável."""
     cats = load_categories()
     labels = {c.id: c.label for c in cats}
@@ -155,6 +176,7 @@ def build_data(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame,
                  "title": "Estabelecimentos por km²"},
     }
     bairro_props = {"nome": "NM_BAIRRO", "total": "total", "dens": "densidade_km2", "area": "area_km2"}
+    cnes_by_bairro = {r["bairro"]: r["cnes_unidades"] for r in (summary.get("cnes") or {}).get("por_bairro", [])}
     if has_pop:
         hab_breaks = class_breaks(table["por_10mil_hab"].fillna(0).to_numpy())
         choropleth["hab"] = {"breaks": hab_breaks, "bins": legend_bins(hab_breaks, 1),
@@ -172,7 +194,8 @@ def build_data(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame,
         ],
         "pois": _features(pts[~not_est], poi_props),
         "paradas": _features(pts[not_est], poi_props),
-        "bairros": _features(bairros_web, bairro_props),
+        "bairros": _with_cnes_count(_features(bairros_web, bairro_props), cnes_by_bairro),
+        "cnes": _cnes_features(cnes),
         "municipio": _features(display_polygons(municipio[["NM_MUN", "geometry"]]),
                                {"nome": "NM_MUN"}),
         "bairroList": bairro_list,
@@ -190,9 +213,10 @@ def build_data(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame,
 
 def build_web_map(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame,
                   table: gpd.GeoDataFrame, summary: dict, output: Path,
-                  esri_key: str | None = None) -> Path:
-    """Gera o HTML. `esri_key=None` usa a chave configurada (settings.ESRI_API_KEY)."""
-    data = build_data(pois, municipio, table, summary)
+                  esri_key: str | None = None, cnes: pd.DataFrame | None = None) -> Path:
+    """Gera o HTML. `esri_key=None` usa a chave configurada (settings.ESRI_API_KEY).
+    `cnes`: unidades do CNES para a camada de comparação (opcional)."""
+    data = build_data(pois, municipio, table, summary, cnes)
     env = Environment(loader=FileSystemLoader(settings.TEMPLATES_DIR),
                       autoescape=select_autoescape(["html"]))
     html = env.get_template("maplibre.html").render(

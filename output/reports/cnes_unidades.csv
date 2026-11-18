@@ -1,0 +1,34 @@
+﻿cnes;nome;grupo;bairro;bairro_cnes;endereco;atende_sus;atualizado_em;lat;lon;no_osm;osm_correspondente;dist_osm_m;criterio;dist_saude_osm_mais_proxima_m
+2512165;Estrategia Saude da Familia 7 Alpino;Atenção básica (UBS/ESF);Alpino;Lencol;Imigrante Jose Hastreiter, 50;True;2026-11-10;-26,242482;-49,442457;False;;;;4305
+2512386;Unidade Basica Bela Alianca;Atenção básica (UBS/ESF);Bela Aliança;Bela Alianca;Estrada Dona Francisca, 6955;True;2026-11-10;-26,207541;-49,36191;False;;;;3605
+7724144;Estrategia Saude da Familia Boehmerwald;Atenção básica (UBS/ESF);Boehmerwald;Boehmerwald;Guido Hastreiter, 1;True;2026-11-10;-26,228514;-49,395223;True;(registro sem nome);103,0;distância;103
+2512203;Estrategia Saude da Familia 11 Vila Sao Paulo;Atenção básica (UBS/ESF);Brasília;Brasilia;Rua Boa Vista, 259;True;2026-11-10;-26,226834;-49,347754;False;;;;2720
+2624923;Estrategia Saude da Familia 3 Centenario;Atenção básica (UBS/ESF);Centenário;Centenario;Rua Hans Dieter Schmidt, 485;True;2026-11-10;-26,24506;-49,349876;False;;;;2260
+6756395;Estrategia Saude da Familia 4 Centenario;Atenção básica (UBS/ESF);Centenário;Centenario;Rua Augusto Wunderwald, 1;True;2026-11-10;-26,23769;-49,34535;False;;;;2611
+3796868;Unidade Basica Central;Atenção básica (UBS/ESF);Centro;Centro;Rua Marechal Deodoro, 255;True;2026-11-10;-26,248655;-49,386281;True;Posto de Saúde Central - Doutor Júlio Teddy Miranda Ascui;4,0;nome e distância;4
+2512300;Estrategia Saude da Familia 1 de Maio;Atenção básica (UBS/ESF);Colonial;Colonial;Rua Carlos Eckstein, 30;True;2026-11-10;-26,226957;-49,406829;True;Posto de Saúde da Vila 1º de Maio - Vito Valandro;375,0;nome e distância;375
+6008771;Estrategia Saude da Familia 8 Urca;Atenção básica (UBS/ESF);Colonial;Colonial;Rua da Urca, 1;True;2026-11-10;-26,233316;-49,420562;False;;;;1894
+9691146;Estrategia Saude da Familia 5 Cruzeiro;Atenção básica (UBS/ESF);Cruzeiro;Cruzeiro;Rua Papanduva, 316;True;2026-11-10;-26,213802;-49,413607;False;;;;1772
+2512181;Estrategia Saude da Familia 6 Cruzeiro;Atenção básica (UBS/ESF);Cruzeiro;Cruzeiro;Rua Papanduva, 239;True;2026-11-10;-26,213725;-49,412835;False;;;;1735
+5621232;Ambulatorio da Penitenciaria Industrial de Sao Bento do Sul;Atenção básica (UBS/ESF);Fora dos bairros oficiais;Lencol;Rua Miguel Hubl, 400;True;2026-11-10;-26,261712;-49,456037;False;;;;4084
+5714745;Estrategia Saude da Familia Lencol;Atenção básica (UBS/ESF);Lençol;Lencol;Miguel Hubl, 1;True;2026-11-10;-26,252095;-49,451169;False;;;;4554
+2512173;Estrategia Saude da Familia 12 Mato Preto;Atenção básica (UBS/ESF);Mato Preto;Mato Preto;Adelia Lili Schneider, 30;True;2026-11-10;-26,196229;-49,393657;False;;;;3503
+2512246;Estrategia Saude da Familia Progresso;Atenção básica (UBS/ESF);Progresso;Progresso;Rua Videira, 89;True;2026-11-10;-26,238941;-49,372172;True;(registro sem nome);72,0;distância;72
+2512378;Estrategia Saude da Familia Rio Vermelho Estacao;Atenção básica (UBS/ESF);Rio Vermelho - Estação;Rio Vermelho;Rua Geraldo Vicente, 290;True;2026-11-10;-26,27964;-49,332819;False;;;;4001
+2512262;Estrategia Saude da Familia Rio Vermelho Povoado;Atenção básica (UBS/ESF);Rio Vermelho Povoado;Rio Vermelho;Joao Kobus, 440;True;2026-11-10;-26,266922;-49,311104;False;;;;5691
+2512270;Estrategia Saude da Familia 25 de Julho;Atenção básica (UBS/ESF);Schramm;25 de Julho;Estevao Buschle, 1635;True;2026-11-10;-26,261976;-49,367945;True;Posto de Saúde 25 de Julho - Doutora Adriana Pinheiro Lisboa;17,0;nome e distância;17
+2512335;Estrategia Saude da Familia 1 Serra Alta;Atenção básica (UBS/ESF);Serra Alta;Serra Alta;Mathias Nossol, 1155;True;2026-11-10;-26,277562;-49,382601;False;;;;2262
+7421303;Estrategia Saude da Familia 10 Serra Alta;Atenção básica (UBS/ESF);Serra Alta;Serra Alta;Rua Mauro Regis, 1;True;2026-11-10;-26,272752;-49,374855;False;;;;1374
+2624931;Estrategia Saude da Familia 2 CAIC;Atenção básica (UBS/ESF);Serra Alta;Serra Alta;Rua Carlos Ruckl, 96;True;2026-11-10;-26,272463;-49,395754;False;;;;2756
+2512297;Unidade Basica Vila Pilz;Atenção básica (UBS/ESF);Serra Alta;Serra Alta;Willy Pilz, 484;True;2026-11-10;-26,290106;-49,423499;False;;;;500
+9842594;PICS Centro de Praticas Integrativas no SUS;Especializada e saúde mental;Centenário;Centenario;Rua Hans Dieter Schmidt, 471;True;2026-11-10;-26,242777;-49,349923;False;;;;2192
+4280245;Ambulatorio de Fisioterapia;Especializada e saúde mental;Centro;Centro;Wenzel Kahlhofer, 131;True;2026-11-10;-26,246892;-49,386388;False;;;;200
+6873103;CAPS Centro de Atencao Psicossocial;Especializada e saúde mental;Centro;Centro;Rua Largo Hugo Fischer, 25;True;2026-11-10;-26,249487;-49,386914;False;;;;110
+2512289;CEM Centro de Especialidades Medicas;Especializada e saúde mental;Centro;Centro;Padre Fidelis Tomelin, 10;False;2026-11-10;-26,24685;-49,379821;False;;;;532
+6532187;CEO Centro de Especialidades Odontologicas;Especializada e saúde mental;Centro;Centro;Rua Marechal Deodoro, 255;True;2026-11-10;-26,24866;-49,386227;False;;;;5
+5606195;Centro de Atendimento Terapeutico;Especializada e saúde mental;Centro;Centro;Largo Hugo Fischer, 25;True;2026-11-10;-26,246543;-49,381528;False;;;;467
+0875759;Centro de Atendimento a Mulher CAM;Especializada e saúde mental;Centro;Centro;Largo Hugo Fischer, 25;False;2026-11-10;-26,246516;-49,38128;False;;;;485
+7103735;Centro de Atendimento ao Diabetico CADIA;Especializada e saúde mental;Centro;Centro;Rua Padre Fidelis Tomelin, 10;False;2026-11-17;-26,246447;-49,37921;False;;;;576
+4372948;Centro de Vigilancia a Saude CVS;Especializada e saúde mental;Progresso;Progresso;Rua Jose Fendrich, 145;True;2026-11-10;-26,242284;-49,375366;False;;;;540
+2521792;Hospital e Maternidade Sagrada Familia;Hospital e urgência;Centro;Centro;Henrique Schwarz, 10;True;2025-09-03;-26,249654;-49,384566;True;Hospital e Maternidade Sagrada Família;7,0;nome e distância;7
+5922054;UPA Hans Egon Kechele;Hospital e urgência;Centro;Colonial;Rua Joao Pauli Esquina Av Sao Bento;True;2026-11-10;-26,249468;-49,387633;False;;;;162

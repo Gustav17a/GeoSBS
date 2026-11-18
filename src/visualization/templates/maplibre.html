@@ -212,6 +212,20 @@
     </table>
     {% if hp %}<p class="note">Município: {{ "{:,}".format(hp)|replace(",", ".") }} habitantes (Censo 2022), {{ "%.1f"|format(s.regioes.por_10mil_hab_municipio)|replace(".", ",") }} estabelecimentos por 10 mil habitantes.</p>{% endif %}
     {% endif %}
+    {% if s.cnes and s.cnes.unidades %}{% set c = s.cnes %}
+    <h3>Comparação com o cadastro oficial (CNES)</h3>
+    <div class="kpi wide" style="margin-bottom:8px"><small>Postos públicos de atenção básica (UBS/ESF) que aparecem no OpenStreetMap</small>
+      <b>{{ c.atencao_basica_no_osm }}<span style="font-size:14px;color:var(--ui-muted)"> de {{ c.atencao_basica }}</span></b></div>
+    <table class="rank">
+      <tr><th>Unidades públicas de saúde</th><th>CNES</th><th>No OSM</th></tr>
+      {% for g, v in c.por_grupo.items() %}<tr><td>{{ g }}</td><td class="n">{{ v.cnes }}</td><td>{{ v.no_osm }}</td></tr>{% endfor %}
+    </table>
+    {% if c.bairros_sem_osm_com_cnes %}<p class="note">Sem nenhum registro no OSM, mas com unidade pública de saúde no CNES:
+      <b>{{ c.bairros_sem_osm_com_cnes|join(", ") }}</b>. A lacuna é do OpenStreetMap, não da cidade.</p>{% endif %}
+    <div class="row"><button class="chip" id="btnCnes">ver unidades do CNES no mapa</button></div>
+    <p class="note">Fonte oficial: CNES (Ministério da Saúde), {{ c.unidades }} unidades da rede pública com coordenadas.
+      Usado só para comparação: não entra nas contagens. As coordenadas são informadas pelo próprio estabelecimento e podem ter erro.</p>
+    {% endif %}
     <h3>Bairros com mais registros</h3>
     <table class="rank">
       <tr><th>Bairro</th><th>Quantidade</th><th>Por km²</th>{% if data.topBairros and data.topBairros[0].hab is not none %}<th>Por 10 mil hab.</th>{% endif %}</tr>
@@ -267,6 +281,7 @@
     <input type="range" id="exag" min="1" max="2.5" step="0.1" value="1.5">
     <div class="row"><button class="chip" id="btnSerra">Vista da Serra do Mar</button><button class="chip" id="btnTop">Vista de cima</button></div>
     <h3>Sobreposições</h3>
+    {% if data.cnes.features %}<label class="opt"><input type="checkbox" id="optCnes"><span>Unidades públicas de saúde (CNES) <span style="vertical-align:-3px"><svg width="16" height="16" viewBox="0 0 64 64"><rect x="5" y="5" width="54" height="54" rx="12" fill="#fff" stroke="#e34948" stroke-width="6"/><path d="M32 17v30M17 32h30" stroke="#e34948" stroke-width="8" stroke-linecap="round"/></svg></span><small>Cadastro oficial do Ministério da Saúde · só para comparação, fora das contagens</small></span></label>{% endif %}
     <label class="opt"><input type="checkbox" id="optBairros" checked><span>Limites dos bairros<small>IBGE, Censo 2022</small></span></label>
     <label class="opt"><input type="checkbox" id="optMun" checked><span>Limite municipal<small>IBGE, Malha 2025</small></span></label>
     <label class="opt"><input type="checkbox" id="optInfra" checked><span>Infraestrutura urbana<small>Ruas, ferrovias e edificações do OpenStreetMap</small></span></label>
@@ -319,7 +334,7 @@ const state = {
   base: "mapa", analysis: "none", terrain: false, exag: 1.5,
   // A chave da Esri só é aceita nos domínios autorizados; aberto do disco (file://) não há
   // domínio, então o mapa usa o Sentinel-2.
-  bairros: true, mun: true, infra: true, hill: true, esri: !!ESRI_KEY && location.protocol !== "file:",
+  bairros: true, mun: true, cnes: false, infra: true, hill: true, esri: !!ESRI_KEY && location.protocol !== "file:",
 };
 
 /* ---------- mapa ---------- */
@@ -412,6 +427,7 @@ map.on("load", async () => {
   trySet("water", "fill-color", "#a7d0e8");
 
   await addCategoryIcons();
+  if (GEO.cnes.features.length) await addCnesIcon();
   addDataLayers();
   addHillshade();
   bindUI();
@@ -428,6 +444,14 @@ map.on("load", async () => {
 function trySet(id, prop, val) { if (map.getLayer(id)) map.setPaintProperty(id, prop, val); }
 
 /* Ícones das categorias: círculo colorido + ícone Lucide branco, rasterizados em 2x */
+const CNES_ICON = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="5" y="5" width="54" height="54" rx="12" fill="#fff" stroke="#e34948" stroke-width="6"/><path d="M32 17v30M17 32h30" stroke="#e34948" stroke-width="8" stroke-linecap="round"/></svg>`;
+async function addCnesIcon() {
+  const img = new Image(64, 64);
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(CNES_ICON);
+  await img.decode();
+  map.addImage("cnes", img, { pixelRatio: 2 });
+}
+
 async function addCategoryIcons() {
   await Promise.all(GEO.categories.map(async (c) => {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
@@ -499,6 +523,22 @@ function addDataLayers() {
       "text-anchor": "top", "text-optional": true, "text-max-width": 10 },
     paint: { "text-color": "#1f2937", "text-halo-color": "#ffffff", "text-halo-width": 1.6 } });
 
+  // Camada de comparação: unidades públicas de saúde do CNES (desligada ao abrir).
+  if (GEO.cnes.features.length) {
+    map.addSource("cnes", { type: "geojson", data: GEO.cnes });
+    map.addLayer({ id: "cnes", type: "symbol", source: "cnes", layout: {
+      visibility: "none", "icon-image": "cnes",
+      "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.6, 16, 0.85],
+      "icon-allow-overlap": true, "icon-ignore-placement": true,
+      "text-field": ["step", ["zoom"], "", 15, ["get", "nome"]],
+      "text-font": ["Noto Sans Regular"], "text-size": 11, "text-offset": [0, 1.3],
+      "text-anchor": "top", "text-optional": true, "text-max-width": 10 },
+      paint: { "text-color": "#9f1239", "text-halo-color": "#ffffff", "text-halo-width": 1.6 } });
+    map.on("click", "cnes", (e) => openCnesPopup(e.features[0]));
+    map.on("mouseenter", "cnes", () => { map.getCanvas().style.cursor = "pointer"; hideTip(); });
+    map.on("mouseleave", "cnes", () => { map.getCanvas().style.cursor = ""; });
+  }
+
   // Quando a fonte termina de recarregar (ex.: após um filtro), redesenha os clusters.
   map.on("sourcedata", (e) => { if (e.sourceId === "pois" && e.isSourceLoaded) { map.triggerRepaint(); updateClusters(); } });
 
@@ -510,7 +550,7 @@ function addDataLayers() {
   }
   let hovered = null;
   map.on("mousemove", (e) => {
-    const onPoint = map.queryRenderedFeatures(e.point, { layers: ["pois", "paradas", "clusters-hit"].filter(l => map.getLayer(l)) }).length;
+    const onPoint = map.queryRenderedFeatures(e.point, { layers: ["pois", "paradas", "clusters-hit", "cnes"].filter(l => map.getLayer(l) && map.getLayoutProperty(l, "visibility") !== "none") }).length;
     const layers = ["bairros-fill", "bairros-line"].filter(l => map.getLayoutProperty(l, "visibility") !== "none");
     const f = !onPoint && layers.length ? pickBairro(e.lngLat) : null;
     if (hovered !== null && hovered !== (f && f.properties.nome)) map.setFeatureState({ source: "bairros", id: hovered }, { hover: false });
@@ -520,7 +560,8 @@ function addDataLayers() {
     const p = f.properties, tip = $("#tip");
     const hab = p.pop == null ? "" : `<br>${fmt(p.pop)} moradores · ${fmt(p.hab, 1)} por 10 mil hab.` +
       (p.inst ? ` <span style="color:#fbbf24">(taxa instável)</span>` : "");
-    tip.innerHTML = `<b>${esc(p.nome)}</b><br>${fmt(p.total)} estabelecimentos · ${fmt(p.dens, 2)} por km²${hab}<br><span style="color:var(--ui-muted)">Área ${fmt(p.area, 2)} km²</span>`;
+    const cn = p.cnes == null ? "" : `<br>${fmt(p.cnes)} unidade${p.cnes === 1 ? "" : "s"} pública${p.cnes === 1 ? "" : "s"} de saúde no CNES`;
+    tip.innerHTML = `<b>${esc(p.nome)}</b><br>${fmt(p.total)} estabelecimentos · ${fmt(p.dens, 2)} por km²${hab}${cn}<br><span style="color:var(--ui-muted)">Área ${fmt(p.area, 2)} km²</span>`;
     tip.style.left = e.point.x + "px"; tip.style.top = e.point.y + "px"; tip.hidden = false;
   });
   map.on("mouseout", hideTip);
@@ -606,6 +647,8 @@ function applyBase() {
 
 function applyOverlays() {
   vis("bairros-line", state.bairros);
+  vis("cnes", state.cnes);
+  if ($("#optCnes")) $("#optCnes").checked = state.cnes;
   vis("municipio-line", state.mun);
   applyBase();
 }
@@ -641,6 +684,7 @@ function renderLegend() {
       <div class="ends"><span>menor concentração</span><span>maior</span></div>
       <div class="sub">Todos os ${GEO.summary.total_estabelecimentos} estabelecimentos (sem paradas de ônibus).</div>`);
   }
+  if (state.cnes) parts.push(`<div class="ttl" style="display:flex;gap:6px;align-items:center">${CNES_ICON.replace('width="64" height="64"', 'width="14" height="14"')} Unidade pública de saúde (CNES)</div><div class="sub">Cadastro oficial, só para comparação. ${GEO.summary.cnes.atencao_basica_no_osm} de ${GEO.summary.cnes.atencao_basica} postos de atenção básica aparecem no OSM.</div>`);
   if (state.terrain) parts.push(`<div class="sub"><b style="color:#fff">Relevo 3D</b> com exagero vertical de ${fmt(state.exag, 1)}×.</div>`);
   if (state.base === "relevo") parts.push(`<div class="ttl" style="margin-top:6px">Altitude (m)</div><div class="grad" style="background:linear-gradient(90deg,#3f7f4f 0%,#79a85f 13%,#b5c47c 30%,#e6dc9c 47%,#ecc98a 55%,#d9a573 61%,#bb8462 68%,#93705f 80%)"></div><div class="ends"><span>0</span><span>450</span><span>820</span><span>1.020</span><span>1.200+</span></div><div class="sub">Mais cores entre 700 e 1.100 m, faixa do planalto de São Bento do Sul.</div>`);
   if ((state.base === "satelite" || state.base === "hibrido") && !state.esri) parts.push(ESRI_KEY
@@ -671,6 +715,7 @@ window.geoView = (mode) => {
   applyAnalysis();
 };
 window.geoState = state;
+window.geoCnes = (on) => { state.cnes = !!on; applyOverlays(); renderLegend(); };
 
 /* ---------- clusters em HTML: anel dividido pelas categorias ---------- */
 const clusterCache = new Map(); let onScreen = new Map();
@@ -736,6 +781,28 @@ function openPopup(f) {
     .setLngLat(f.geometry.coordinates).setHTML(html).addTo(map);
 }
 
+function openCnesPopup(f) {
+  const p = f.properties;
+  const val = (v) => esc(v) ?? '<span class="na">não informado</span>';
+  const osm = p.no_osm
+    ? `Sim: ${esc(p.osm_correspondente)} (${fmt(p.dist_osm_m)} m)`
+    : `<b style="color:#be123c">Não</b> (nenhum registro de saúde correspondente)`;
+  const bairroCnes = p.bairro_cnes && p.bairro_cnes.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() !==
+    String(p.bairro).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    ? `<dt>Bairro no CNES</dt><dd>${val(p.bairro_cnes)}</dd>` : "";
+  const html = `<div class="pp-head" style="background:#be123c"><span class="ico">${CNES_ICON.replace('width="64" height="64"', 'width="20" height="20"')}</span>
+      <div><b>${val(p.nome)}</b><small>${esc(p.grupo)} · CNES</small></div></div>
+    <div class="pp-body"><dl>
+      <dt>Endereço</dt><dd>${val(p.endereco)}</dd>
+      <dt>Bairro (IBGE)</dt><dd>${val(p.bairro)}</dd>${bairroCnes}
+      <dt>Atende SUS</dt><dd>${p.atende_sus ? "Sim" : "Não informado"}</dd>
+      <dt>No OSM?</dt><dd>${osm}</dd>
+      <dt>Fonte</dt><dd><a href="https://cnes.datasus.gov.br/" target="_blank" rel="noopener">CNES</a> nº ${esc(p.cnes)} · atualizado em ${val(p.atualizado_em)}</dd>
+    </dl></div>`;
+  new maplibregl.Popup({ offset: 14, maxWidth: "320px", focusAfterOpen: false })
+    .setLngLat(f.geometry.coordinates).setHTML(html).addTo(map);
+}
+
 /* ---------- relevo 3D ---------- */
 function setTerrain(on, opts = {}) {
   state.terrain = on;
@@ -790,6 +857,8 @@ function bindUI() {
   $("#btnTop").onclick = () => goMunicipio();
   $("#optBairros").onchange = (e) => { state.bairros = e.target.checked; applyOverlays(); };
   $("#optMun").onchange = (e) => { state.mun = e.target.checked; applyOverlays(); };
+  if ($("#optCnes")) $("#optCnes").onchange = (e) => geoCnes(e.target.checked);
+  if ($("#btnCnes")) $("#btnCnes").onclick = () => { geoCnes(true); goMunicipio(); };
   $("#optInfra").onchange = (e) => { state.infra = e.target.checked; applyBase(); };
   $("#optHill").onchange = (e) => { state.hill = e.target.checked; applyBase(); };
   if (!ESRI_KEY) { $("#optEsri").disabled = true; $("#esriNote").textContent = "Indisponível: chave da ArcGIS Location Platform não configurada (ver README)."; }

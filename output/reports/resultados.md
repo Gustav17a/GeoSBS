@@ -79,6 +79,45 @@ _* Menos de 500 habitantes: um único registro muda muito a taxa; esses bairros 
 
 _População: Censo 2022 (IBGE, V0001 = total de pessoas). A taxa por bairro não mede o atendimento: um equipamento serve moradores de outros bairros._
 
+## Completude do OSM na saúde (comparação com o CNES)
+Fonte oficial: CNES, API de dados abertos do Ministério da Saúde (baixado em 2026-11-18T13:54:07). O cadastro do município tem 333 estabelecimentos; foram selecionadas 38 unidades de atendimento da rede pública (UBS/ESF, CAPS, UPA, centros especializados municipais e hospitais que atendem pelo SUS). Sem coordenada: 3; cadastro duplicado: 1; fora do município: 1. No mapa: **33**. O CNES não entra nas contagens de estabelecimentos.
+
+- Atenção básica: **5 de 22** unidades do CNES têm registro correspondente no OSM.
+- Todas as unidades: 6 de 33.
+- Bairros sem nenhum registro no OSM, mas com unidade pública de saúde no CNES: **Alpino, Rio Vermelho Povoado**.
+
+| Grupo | Unidades no CNES | Encontradas no OSM |
+|---|---|---|
+| Atenção básica (UBS/ESF) | 22 | 5 |
+| Especializada e saúde mental | 9 | 0 |
+| Hospital e urgência | 2 | 1 |
+
+| Bairro | CNES (unidades públicas) | CNES atenção básica | CNES encontradas no OSM | OSM saúde | OSM (todos) |
+|---|---|---|---|---|---|
+| Centro | 10 | 1 | 2 | 6 | 44 |
+| Oxford | 0 | 0 | 0 | 0 | 15 |
+| Serra Alta | 4 | 4 | 0 | 1 | 11 |
+| Colonial | 2 | 2 | 1 | 2 | 8 |
+| Centenário | 3 | 2 | 0 | 0 | 8 |
+| Brasília | 1 | 1 | 0 | 0 | 5 |
+| Boehmerwald | 1 | 1 | 1 | 1 | 4 |
+| Mato Preto | 1 | 1 | 0 | 0 | 4 |
+| Schramm | 1 | 1 | 1 | 3 | 4 |
+| Progresso | 2 | 1 | 1 | 1 | 3 |
+| Rio Negro | 0 | 0 | 0 | 0 | 3 |
+| Cruzeiro | 2 | 2 | 0 | 0 | 2 |
+| Lençol | 1 | 1 | 0 | 0 | 1 |
+| Vinte e Cinco de Julho | 0 | 0 | 0 | 0 | 1 |
+| Rio Vermelho - Estação | 1 | 1 | 0 | 0 | 1 |
+| Bela Aliança | 1 | 1 | 0 | 0 | 1 |
+| Industrial Sudoeste | 0 | 0 | 0 | 0 | 0 |
+| Dona Francisca | 0 | 0 | 0 | 0 | 0 |
+| Alpino | 1 | 1 | 0 | 0 | 0 |
+| Rio Vermelho Povoado | 1 | 1 | 0 | 0 | 0 |
+| Fora dos bairros oficiais | 1 | 1 | 0 | 0 | 11 |
+
+_Correspondência: registro do OSM com nome → ao menos uma palavra própria em comum e até 1000 m; registro sem nome → até 250 m (só atenção básica). Coordenadas do CNES são informadas pelo próprio estabelecimento e podem ter erro; detalhes por unidade em `cnes_unidades.csv`._
+
 ## Proximidade (ponto representativo do bairro → unidade mais próxima, em metros, linha reta)
 | Bairro | dist_saude_m | dist_educacao_m | dist_farmacias_m |
 |---|---|---|---|
