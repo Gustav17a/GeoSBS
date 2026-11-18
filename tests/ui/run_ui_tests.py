@@ -128,6 +128,7 @@ def checks(r: dict) -> list[tuple[str, bool, object]]:
         ("mostrar todas", r.get("mostrarTodas") == total, r.get("mostrarTodas")),
         ("coroplético de densidade", r.get("coropletico_dens") == bairros, r.get("coropletico_dens")),
         ("coroplético de quantidade", r.get("coropletico_total") == bairros, r.get("coropletico_total")),
+        ("coroplético por habitante", r.get("coropletico_hab") == bairros, r.get("coropletico_hab")),
         ("modo satélite", (r.get("base_satelite") or {}).get("satelite") == "visible", r.get("base_satelite")),
         ("modo híbrido com rótulos", r.get("base_hibrido") == {"satelite": "visible", "relevo": "none", "rotulos": "visible"}, r.get("base_hibrido")),
         ("modo relevo", (r.get("base_relevo") or {}).get("relevo") == "visible", r.get("base_relevo")),

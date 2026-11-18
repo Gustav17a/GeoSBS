@@ -45,6 +45,21 @@ IBGE_BAIRROS_URL = (
     f"{_GEOFTP}/malhas_de_setores_censitarios__divisoes_intramunicipais/"
     "censo_2022/bairros/shp/UF/SC_bairros_CD2022.zip"
 )
+# População residente (Censo 2022, "Agregados por bairros/municípios – básico").
+# Variável V0001 = "Total de pessoas" (dicionário de dados do IBGE, 13/11/2026).
+_AGREGADOS = ("https://ftp.ibge.gov.br/Censos/Censo_Demografico_2022/"
+              "Agregados_por_Setores_Censitarios")
+IBGE_POP_BAIRROS_URL = (
+    f"{_AGREGADOS}/Agregados_por_Bairro_csv/Agregados_por_bairros_basico_BR_20260520.zip"
+)
+IBGE_POP_MUNICIPIOS_URL = (
+    f"{_AGREGADOS}/Agregados_por_Municipio_csv/Agregados_por_municipios_basico_BR_20260520.zip"
+)
+# Indicador por habitante: registros por 10 mil habitantes. Em bairros com poucos
+# moradores um único registro muda muito a taxa; abaixo deste limite a taxa é
+# marcada como instável e não entra nos destaques de maior/menor.
+PER_CAPITA_BASE = 10_000
+POP_MIN_TAXA = 500
 
 # --- OpenStreetMap / Overpass --------------------------------------------------
 # Instâncias públicas, tentadas em ordem. Respeitar a política de uso:

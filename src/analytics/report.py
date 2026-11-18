@@ -22,10 +22,52 @@ def _md_table(df: pd.DataFrame) -> str:
 def _regions_md(reg: dict) -> list[str]:
     tab = pd.DataFrame(reg["tabela"]).rename(columns={
         "regiao": "Região", "area_km2": "Área (km²)", "total": "Estabelecimentos",
-        "densidade_km2": "Por km²", "pct_area": "% da área", "pct_registros": "% dos registros"})
+        "densidade_km2": "Por km²", "pct_area": "% da área", "pct_registros": "% dos registros",
+        "populacao": "População", "por_10mil_hab": "Por 10 mil hab."})
     cats = ", ".join(f"{k} {v}" for k, v in reg["fora_por_categoria"].items()) or "nenhum"
-    return ["## Área urbana × fora dos bairros", _md_table(tab), "",
-            f"Fora dos bairros, por categoria: {cats}.", ""]
+    lines = ["## Área urbana × fora dos bairros", _md_table(tab), "",
+             f"Fora dos bairros, por categoria: {cats}.", ""]
+    if reg.get("populacao_municipio"):
+        lines[-1:] = ["", f"Município inteiro: {reg['populacao_municipio']} habitantes (Censo 2022), "
+                          f"{reg['por_10mil_hab_municipio']} estabelecimentos por 10 mil habitantes.", ""]
+    return lines
+
+
+def _bairros_md(tab: pd.DataFrame) -> list[str]:
+    cols = {"NM_BAIRRO": "Bairro", "area_km2": "Área (km²)", "total": "Total",
+            "densidade_km2": "Por km²", "participacao_pct": "% do total"}
+    if "populacao" in tab:
+        cols |= {"populacao": "População", "por_10mil_hab": "Por 10 mil hab."}
+    out = tab[list(cols)].rename(columns=cols)
+    if "taxa_instavel" in tab:
+        out["Por 10 mil hab."] = [f"{v} *" if inst else v
+                                  for v, inst in zip(out["Por 10 mil hab."], tab["taxa_instavel"])]
+    lines = ["## Por bairro (quantidade, densidade e por habitante)", _md_table(out), ""]
+    if "taxa_instavel" in tab and tab["taxa_instavel"].any():
+        lines += [f"_* Menos de {settings.POP_MIN_TAXA} habitantes: um único registro muda muito a taxa; "
+                  "esses bairros ficam fora dos destaques de maior e menor._", ""]
+    lines += ["_População: Censo 2022 (IBGE, V0001 = total de pessoas). A taxa por bairro não mede o "
+              "atendimento: um equipamento serve moradores de outros bairros._", ""]
+    return lines
+
+
+def _names(pick: dict | None) -> str:
+    if not pick:
+        return "—"
+    return ", ".join(pick.get("empatados", [pick["bairro"]]))
+
+
+def _extremes_md(s: dict) -> list[str]:
+    lines = [f"- Maior quantidade: **{_names(s.get('bairro_maior_quantidade'))}**",
+             f"- Menor quantidade: **{_names(s.get('bairro_menor_quantidade'))}**",
+             f"- Maior densidade: **{_names(s.get('bairro_maior_densidade'))}**",
+             f"- Menor densidade: **{_names(s.get('bairro_menor_densidade'))}**"]
+    if s.get("bairro_maior_por_hab"):
+        lines += [f"- Maior por habitante: **{_names(s['bairro_maior_por_hab'])}** "
+                  f"({s['bairro_maior_por_hab']['valor']} por 10 mil hab.)",
+                  f"- Menor por habitante: **{_names(s['bairro_menor_por_hab'])}** "
+                  f"({s['bairro_menor_por_hab']['valor']} por 10 mil hab.)"]
+    return lines
 
 
 def write_reports(summary: dict, table: gpd.GeoDataFrame, proximity: pd.DataFrame,
@@ -79,16 +121,13 @@ def write_reports(summary: dict, table: gpd.GeoDataFrame, proximity: pd.DataFram
         f"- Bairros analisados: {summary['bairros_analisados']} "
         f"({summary['bairros_com_registros']} com ao menos um registro)",
         f"- Registros fora dos bairros oficiais: {summary['fora_dos_bairros']}",
+        *_extremes_md(summary),
         "",
         "### Por categoria",
         _md_table(pd.DataFrame(list(summary["por_categoria"].items()), columns=["Categoria", "Registros"])),
         "",
         *(_regions_md(summary["regioes"]) if summary.get("regioes") else []),
-        "## Por bairro (quantidade e densidade)",
-        _md_table(tab[["NM_BAIRRO", "area_km2", "total", "densidade_km2", "participacao_pct"]]
-                  .rename(columns={"NM_BAIRRO": "Bairro", "area_km2": "Área (km²)", "total": "Total",
-                                   "densidade_km2": "Por km²", "participacao_pct": "% do total"})),
-        "",
+        *_bairros_md(tab),
         "## Proximidade (ponto representativo do bairro → unidade mais próxima, em metros, linha reta)",
         _md_table(proximity.rename(columns={"NM_BAIRRO": "Bairro"})),
         "",

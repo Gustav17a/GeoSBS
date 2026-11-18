@@ -103,13 +103,13 @@ agregados por áreas dependem do recorte adotado, o Problema da Unidade de Área
 
 | Etapa | Procedimento |
 |---|---|
-| Aquisição | Download da Malha Municipal 2025 e da Malha de Bairros do Censo 2022 (IBGE, *shapefile*); consulta única à Overpass API do OSM pelo retângulo envolvente do município, salva com data e hora em `data/raw/`. |
+| Aquisição | Download da Malha Municipal 2025 e da Malha de Bairros do Censo 2022 (IBGE, *shapefile*) e da população residente do Censo 2022 por bairro e por município (IBGE, *Agregados por bairros/municípios – básico*, variável V0001 = total de pessoas, ligada aos bairros pelo código `CD_BAIRRO`); consulta única à Overpass API do OSM pelo retângulo envolvente do município, salva com data e hora em `data/raw/`. |
 | Classificação | Regras de tags OSM → 8 categorias (`config/categories.json`), com condições opcionais por regra (ex.: centro comunitário só é serviço público com operador público); elementos que não casam são descartados e contados no relatório de qualidade. |
 | Validação | Coordenadas ausentes ou fora da faixa → rejeitadas; pontos fora do polígono municipal (tolerância de 50 m) → rejeitados; nome/endereço ausentes → mantidos com sinalização. Endereços ausentes recebem a rua mais próxima por geocodificação reversa (Nominatim, 1 requisição/s, com cache), marcada como aproximada. |
 | Deduplicação | Mesma categoria, distância ≤ 75 m e similaridade de nome ≥ 0,85; mantém-se o registro mais completo. |
-| Análise espacial | Junção ponto-em-polígono para atribuir bairro; área em km² na projeção UTM 22S; densidade = registros/km²; proximidade = distância em linha reta do ponto representativo do bairro à unidade mais próxima; índice de Clark-Evans por categoria com teste de Monte Carlo (999 sorteios na área dos bairros, p < 0,05); região "fora dos bairros" (município − bairros) com quantidade e densidade próprias. |
+| Análise espacial | Junção ponto-em-polígono para atribuir bairro; área em km² na projeção UTM 22S; densidade = registros/km²; taxa por habitante = registros por 10 mil moradores (bairros com menos de 500 moradores marcados como taxa instável e excluídos dos destaques de maior/menor); proximidade = distância em linha reta do ponto representativo do bairro à unidade mais próxima; índice de Clark-Evans por categoria com teste de Monte Carlo (999 sorteios na área dos bairros, p < 0,05); região "fora dos bairros" (município − bairros) com quantidade, densidade e população próprias. |
 | Visualização | MapLibre GL JS: mapa vetorial (OpenFreeMap/OSM), satélite Esri World Imagery (alta resolução, com chave) ou Sentinel-2 (EOxCloudless), relevo sombreado e hipsométrico e terreno 3D a partir de elevação real (SRTM/GMTED2010); ícones SVG por categoria, clusters, mapa de calor, coropléticos e painel HTML/CSS/JS. Versão clássica em Folium (Leaflet) como alternativa sem WebGL. |
-| Verificação | 46 testes automatizados (pytest); conferência da área calculada com a oficial; teste de interface automatizado num navegador real (`tests/ui/run_ui_tests.py`, 21 verificações: enquadramento, navegação, filtros, mapa de calor, coropléticos, mapas-base, popups, clusters e 3D); inspeção visual do mapa. |
+| Verificação | 51 testes automatizados (pytest); conferência da área calculada com a oficial e da população do município (83.277) com o total oficial do Censo 2022; teste de interface automatizado num navegador real (`tests/ui/run_ui_tests.py`, 22 verificações: enquadramento, navegação, filtros, mapa de calor, três coropléticos, mapas-base, popups, clusters e 3D); inspeção visual do mapa. |
 
 Paradas de ônibus são exibidas no mapa, mas excluídas das contagens de estabelecimentos e do
 mapa de calor, para não distorcer a comparação entre bairros.
@@ -240,6 +240,29 @@ Serra Alta é um bom exemplo da diferença entre as medidas: é o **3º em quant
 registros), mas, por ser o maior bairro (12,06 km²), tem densidade de apenas **0,91 por km²**,
 abaixo de bairros com menos registros, como Centenário (1,88), Colonial (1,61) e Boehmerwald (1,37).
 
+**Por habitante** — estabelecimentos por 10 mil moradores, com a população do Censo 2022
+(IBGE). O município tem **83.277 habitantes**: 77.798 nos 20 bairros e 5.479 fora deles. No
+município inteiro, a taxa é de **15,1 estabelecimentos por 10 mil habitantes**.
+
+| Bairro | Estabelecimentos | Moradores | Por 10 mil hab. |
+|---|---:|---:|---:|
+| Centro | 44 | 5.235 | **84,0** |
+| Oxford | 15 | 3.386 | 44,3 |
+| Boehmerwald | 4 | 2.161 | 18,5 |
+| Centenário | 8 | 5.789 | 13,8 |
+| Colonial | 8 | 5.955 | 13,4 |
+| Serra Alta | 11 | **12.167** | **9,0** |
+| Cruzeiro | 2 | 6.551 | 3,1 |
+| Vinte e Cinco de Julho | 1 | 4.190 | 2,4 |
+| Dona Francisca e Alpino (empate) | 0 | 2.083 e 1.659 | **0** |
+
+Serra Alta é o bairro mais populoso (16% dos moradores do município), mas tem 9,0
+estabelecimentos por 10 mil habitantes, abaixo da média municipal; Cruzeiro, o 2º mais populoso
+(6.551), tem 3,1. A densidade por km² não mostrava esse contraste. Três bairros têm menos de
+500 moradores (Industrial Sudoeste 93, Rio Vermelho Povoado 301 e Bela Aliança 488) e são
+marcados como **taxa instável**: Bela Aliança chegaria a 20,5 com um único registro. A tabela
+completa está em `output/reports/resultados.md`.
+
 **Proximidade** — distância em linha reta (m) do ponto representativo de cada bairro até a
 unidade mais próxima (`output/reports/proximidade.csv`):
 
@@ -310,19 +333,23 @@ a distância esperada para Farmácias é 1.713 m pela fórmula original, 2.875 m
 
 **Área urbana × fora dos bairros** (`output/reports/por_regiao.csv`):
 
-| Região | Área | Estabelecimentos | Por km² |
-|---|---:|---:|---:|
-| Área urbana (20 bairros do IBGE) | 82,1 km² (16,6%) | 115 (91,3%) | 1,40 |
-| Fora dos bairros (área rural e lacunas) | 412,8 km² (83,4%) | 11 (8,7%) | 0,03 |
+| Região | Área | Estabelecimentos | Por km² | Moradores | Por 10 mil hab. |
+|---|---:|---:|---:|---:|---:|
+| Área urbana (20 bairros do IBGE) | 82,1 km² (16,6%) | 115 (91,3%) | 1,40 | 77.798 | 14,8 |
+| Fora dos bairros (área rural e lacunas) | 412,8 km² (83,4%) | 11 (8,7%) | 0,03 | 5.479 | 20,1 |
 
 Fora dos bairros estão 83% do território e 9% dos registros, com densidade 47 vezes menor que a
 da área urbana. Os 11 registros são 9 pontos de interesse turísticos ou de lazer rural, o campus
 do Instituto Federal Catarinense (lacuna da malha de bairros) e o Centro Comunitário Santinor da
-Silva. A região não entra no ranking de bairros, porque não é um bairro.
+Silva. A região não entra no ranking de bairros, porque não é um bairro. A taxa por habitante
+fora dos bairros (20,1) é maior que a urbana (14,8) porque lá moram poucas pessoas e 9 dos 11
+registros são pontos turísticos ou de lazer rural, não serviços para os moradores.
 
 **Leitura dos resultados:** quantidade responde "onde há mais registros" (Centro, Oxford,
 Serra Alta); densidade responde "onde eles estão mais concentrados por km²" e favorece bairros
-pequenos e centrais (Centro, Oxford); proximidade responde "a que distância fica a unidade mais
+pequenos e centrais (Centro, Oxford); a taxa por habitante responde "quantos registros há para
+cada grupo de moradores" e mostra bairros populosos com poucos registros (Serra Alta, Cruzeiro);
+proximidade responde "a que distância fica a unidade mais
 próxima" e pode ser boa mesmo em bairros com poucos registros, desde que haja uma unidade perto
 do limite do bairro.
 
@@ -356,8 +383,13 @@ do limite do bairro.
   jardins sem nome não tinham nenhuma outra tag e podem ser canteiros. Permanecem limitações:
   `amenity=dentist` (Saúde) inclui consultórios particulares, e o registro "Compre Mais"
   (`amenity=marketplace`) não pôde ser confirmado em outra fonte.
-- **Empates:** quatro bairros têm zero registros; o relatório automático cita apenas um deles
-  como "menor quantidade" e "menor densidade".
+- **Empates:** quatro bairros têm zero registros; relatório, painel e mapa clássico listam
+  todos os empatados em "menor quantidade" e "menor densidade".
+- **Taxa por habitante:** usa a população do bairro onde o equipamento está, mas um equipamento
+  atende moradores de outros bairros (o hospital do Centro atende a cidade inteira). A taxa não
+  mede atendimento nem capacidade. Em bairros com menos de 500 moradores ela é instável e fica
+  fora dos destaques. A população é a do Censo 2022 (data de referência 1º/8/2022), e a coleta do
+  OSM é de 2026.
 - **Disponibilidade de APIs:** durante o desenvolvimento, as instâncias públicas do Overpass
   retornaram erros 502/504 em vários momentos. O sistema trata isso com novas tentativas,
   instâncias alternativas, cache e uma opção de importação manual.
@@ -378,8 +410,8 @@ marcadores, agrupamento, camadas, mapas de calor e coropléticos. O principal ap
 metodológico é que os dados espaciais exigem validação explícita e interpretação cuidadosa.
 Distinguir quantidade, densidade e proximidade e declarar as limitações das fontes é o que
 transforma um mapa em informação confiável. Trabalhos futuros: integrar o CNES (saúde) e o
-Catálogo de Escolas do INEP, usar a população por setor censitário para calcular indicadores
-per capita e medir a acessibilidade pela rede viária.
+Catálogo de Escolas do INEP, cruzar a taxa por habitante com a faixa etária (escolas por
+crianças, por exemplo) e medir a acessibilidade pela rede viária.
 
 ## 14. Referências
 
@@ -412,6 +444,11 @@ https://www.arcgis.com/home/item.html?id=10df2279f9684e4a9f6a7f08febac2a9. Acess
 IBGE. *Censo Demográfico 2022: Malha de Setores Censitários — Bairros*. Rio de Janeiro: IBGE,
 2024. Disponível em:
 https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais/26565-malhas-de-setores-censitarios-divisoes-intramunicipais.html.
+
+IBGE. *Censo Demográfico 2022: Agregados por Setores Censitários — Agregados por bairros e por
+municípios (básico)*. Rio de Janeiro: IBGE, 2026. Disponível em:
+https://ftp.ibge.gov.br/Censos/Censo_Demografico_2022/Agregados_por_Setores_Censitarios/.
+Acesso em: 18 nov. 2026.
 
 LONGLEY, P. A.; GOODCHILD, M. F.; MAGUIRE, D. J.; RHIND, D. W. *Geographic information
 science and systems*. 4. ed. Hoboken: Wiley, 2015.

@@ -3,6 +3,8 @@
 Três conceitos são mantidos separados de propósito:
 - QUANTIDADE: número de registros num bairro.
 - DENSIDADE: registros por km² do bairro (normaliza pelo tamanho da área).
+- POR HABITANTE: registros por 10 mil moradores (Censo 2022; normaliza pela
+  população). Não mede atendimento: um hospital no Centro atende a cidade toda.
 - PROXIMIDADE: distância de um ponto do bairro até a unidade mais próxima,
   uma aproximação simples de acessibilidade geográfica (em linha reta,
   sem considerar ruas, relevo ou capacidade de atendimento).
@@ -26,8 +28,10 @@ def establishments(pois: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return pois[~pois["subcategoria"].isin(settings.NOT_ESTABLISHMENT_SUBCATEGORIES)]
 
 
-def by_bairro(pois: gpd.GeoDataFrame, bairros: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    """Tabela por bairro com contagens por categoria, total e densidade."""
+def by_bairro(pois: gpd.GeoDataFrame, bairros: gpd.GeoDataFrame,
+              populacao: pd.DataFrame | None = None) -> gpd.GeoDataFrame:
+    """Tabela por bairro com contagens por categoria, total, densidade e, se houver
+    população (colunas CD_BAIRRO e populacao), registros por 10 mil habitantes."""
     est = establishments(pois)
     cat_ids = [c.id for c in load_categories()]
     counts = (
@@ -44,6 +48,11 @@ def by_bairro(pois: gpd.GeoDataFrame, bairros: gpd.GeoDataFrame) -> gpd.GeoDataF
     total_all = table["total"].sum()
     table["participacao_pct"] = (100 * table["total"] / total_all).round(1) if total_all else 0.0
     table["area_km2"] = table["area_km2"].round(3)
+    if populacao is not None:
+        table = table.merge(populacao[["CD_BAIRRO", "populacao"]], on="CD_BAIRRO", how="left")
+        pop = table["populacao"]
+        table["por_10mil_hab"] = (settings.PER_CAPITA_BASE * table["total"] / pop.where(pop > 0)).round(1)
+        table["taxa_instavel"] = pop.lt(settings.POP_MIN_TAXA).fillna(False)
     return table.sort_values("total", ascending=False).reset_index(drop=True)
 
 
@@ -192,6 +201,17 @@ def summary(pois: gpd.GeoDataFrame, table: gpd.GeoDataFrame) -> dict:
     top_density = table.sort_values("densidade_km2", ascending=False).iloc[0] if len(table) else None
     low_density = table.sort_values("densidade_km2").iloc[0] if len(table) else None
     data_coleta = pois["data_coleta"].max() if len(pois) else None
+    per_capita = {}
+    if "por_10mil_hab" in table:
+        # Destaques só entre bairros com população suficiente para uma taxa estável.
+        stable = table[~table["taxa_instavel"] & table["por_10mil_hab"].notna()]
+        per_capita = {
+            "bairro_maior_por_hab": _pick(stable.sort_values("por_10mil_hab", ascending=False).iloc[0],
+                                          "por_10mil_hab", stable) if len(stable) else None,
+            "bairro_menor_por_hab": _pick(stable.sort_values("por_10mil_hab").iloc[0],
+                                          "por_10mil_hab", stable) if len(stable) else None,
+            "bairros_taxa_instavel": table.loc[table["taxa_instavel"], "NM_BAIRRO"].tolist(),
+        }
 
     return {
         "total_estabelecimentos": int(len(est)),
@@ -207,11 +227,13 @@ def summary(pois: gpd.GeoDataFrame, table: gpd.GeoDataFrame) -> dict:
         "bairro_menor_quantidade": _pick(low_count, "total", table),
         "bairro_maior_densidade": _pick(top_density, "densidade_km2", table),
         "bairro_menor_densidade": _pick(low_density, "densidade_km2", table),
+        **per_capita,
         "data_coleta": data_coleta,
     }
 
 
-def regions(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame, table: gpd.GeoDataFrame) -> dict:
+def regions(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame, table: gpd.GeoDataFrame,
+            pop_municipio: int | None = None) -> dict:
     """Quantidade e densidade em duas regiões: área dos bairros × resto do município.
 
     Os bairros do IBGE cobrem só a área urbana; o resto do município (área rural e
@@ -224,22 +246,34 @@ def regions(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame, table: gpd.GeoD
     mun_km2 = float(municipio.to_crs(settings.CRS_METRIC).area.sum()) / 1e6
     urb_km2 = float(table["area_km2"].sum())
     fora = est["bairro"] == FORA_DE_BAIRRO
+    has_pop = pop_municipio is not None and "populacao" in table
+    pop_urb = int(table["populacao"].sum()) if has_pop else None
+    pops = (pop_urb, pop_municipio - pop_urb) if has_pop else (None, None)
     rows = []
-    for nome, area, n in (("Área urbana (bairros do IBGE)", urb_km2, int((~fora).sum())),
-                          ("Fora dos bairros (área rural e lacunas)", mun_km2 - urb_km2, int(fora.sum()))):
-        rows.append({"regiao": nome, "area_km2": round(area, 1), "total": n,
-                     "densidade_km2": round(n / area, 2) if area else 0.0,
-                     "pct_area": round(100 * area / mun_km2, 1),
-                     "pct_registros": round(100 * n / len(est), 1) if len(est) else 0.0})
+    for (nome, area, n), pop in zip((("Área urbana (bairros do IBGE)", urb_km2, int((~fora).sum())),
+                                     ("Fora dos bairros (área rural e lacunas)", mun_km2 - urb_km2, int(fora.sum()))),
+                                    pops):
+        row = {"regiao": nome, "area_km2": round(area, 1), "total": n,
+               "densidade_km2": round(n / area, 2) if area else 0.0,
+               "pct_area": round(100 * area / mun_km2, 1),
+               "pct_registros": round(100 * n / len(est), 1) if len(est) else 0.0}
+        if has_pop:
+            row["populacao"] = pop
+            row["por_10mil_hab"] = round(settings.PER_CAPITA_BASE * n / pop, 1) if pop else None
+        rows.append(row)
     fora_cat = est[fora]["categoria"].map(labels).value_counts()
-    return {"tabela": rows, "fora_por_categoria": {k: int(v) for k, v in fora_cat.items()}}
+    out = {"tabela": rows, "fora_por_categoria": {k: int(v) for k, v in fora_cat.items()}}
+    if has_pop:
+        out["populacao_municipio"] = int(pop_municipio)
+        out["por_10mil_hab_municipio"] = round(settings.PER_CAPITA_BASE * len(est) / pop_municipio, 1)
+    return out
 
 
 def _pick(row: pd.Series | None, field: str, table: gpd.GeoDataFrame | None = None) -> dict | None:
     """Bairro com o valor extremo; `empatados` lista todos os bairros com o mesmo valor."""
     if row is None:
         return None
-    value = float(row[field]) if "dens" in field else int(row[field])
+    value = int(row[field]) if field == "total" else float(row[field])
     out = {"bairro": row["NM_BAIRRO"], "valor": value}
     if table is not None:
         tied = table.loc[np.isclose(table[field].astype(float), float(row[field])), "NM_BAIRRO"].tolist()

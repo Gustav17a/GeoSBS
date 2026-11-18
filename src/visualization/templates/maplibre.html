@@ -193,7 +193,11 @@
       <div class="kpi wide"><small>Categoria com mais registros</small><b class="sm">{{ s.categoria_mais_registros or "—" }}</b></div>
       {% if s.bairro_maior_quantidade %}
       <div class="kpi"><small>Maior quantidade</small><b class="sm">{{ s.bairro_maior_quantidade.bairro }}</b><small>{{ s.bairro_maior_quantidade.valor }} registros</small></div>
-      <div class="kpi"><small>Maior densidade</small><b class="sm">{{ s.bairro_maior_densidade.bairro }}</b><small>{{ "%.1f"|format(s.bairro_maior_densidade.valor) }} por km²</small></div>
+      <div class="kpi"><small>Maior densidade</small><b class="sm">{{ s.bairro_maior_densidade.bairro }}</b><small>{{ "%.1f"|format(s.bairro_maior_densidade.valor)|replace(".", ",") }} por km²</small></div>
+      {% endif %}
+      {% if s.bairro_maior_por_hab %}
+      <div class="kpi"><small>Maior por habitante</small><b class="sm">{{ s.bairro_maior_por_hab.bairro }}</b><small>{{ "%.1f"|format(s.bairro_maior_por_hab.valor)|replace(".", ",") }} por 10 mil hab.</small></div>
+      <div class="kpi"><small>Menor por habitante</small><b class="sm">{{ (s.bairro_menor_por_hab.empatados or [s.bairro_menor_por_hab.bairro])|join(", ") }}</b><small>{{ "%.1f"|format(s.bairro_menor_por_hab.valor)|replace(".", ",") }} por 10 mil hab.</small></div>
       {% endif %}
       {% if s.bairros_sem_registros %}
       <div class="kpi wide"><small>Sem registros na base ({{ s.bairros_sem_registros|length }} bairros)</small><b class="sm" style="font-weight:500">{{ s.bairros_sem_registros|join(", ") }}</b></div>
@@ -202,24 +206,27 @@
     {% if s.regioes %}
     <h3>Área urbana × fora dos bairros</h3>
     <table class="rank">
-      <tr><th>Região</th><th>Área</th><th>Registros</th><th>Por km²</th></tr>
-      {% for r in s.regioes.tabela %}<tr><td>{{ r.regiao.split(" (")[0] }}</td><td>{{ "%.1f"|format(r.area_km2)|replace(".", ",") }} km²</td><td class="n">{{ r.total }}</td><td>{{ "%.2f"|format(r.densidade_km2)|replace(".", ",") }}</td></tr>{% endfor %}
+      {% set hp = s.regioes.populacao_municipio %}
+      <tr><th>Região</th><th>Área</th><th>Reg.</th><th>Por km²</th>{% if hp %}<th>Hab.</th><th title="Estabelecimentos por 10 mil habitantes">Por 10 mil</th>{% endif %}</tr>
+      {% for r in s.regioes.tabela %}<tr><td>{{ r.regiao.split(" (")[0] }}</td><td>{{ "%.1f"|format(r.area_km2)|replace(".", ",") }} km²</td><td class="n">{{ r.total }}</td><td>{{ "%.2f"|format(r.densidade_km2)|replace(".", ",") }}</td>{% if hp %}<td>{{ "{:,}".format(r.populacao)|replace(",", ".") }}</td><td>{{ "%.1f"|format(r.por_10mil_hab)|replace(".", ",") }}</td>{% endif %}</tr>{% endfor %}
     </table>
+    {% if hp %}<p class="note">Município: {{ "{:,}".format(hp)|replace(",", ".") }} habitantes (Censo 2022), {{ "%.1f"|format(s.regioes.por_10mil_hab_municipio)|replace(".", ",") }} estabelecimentos por 10 mil habitantes.</p>{% endif %}
     {% endif %}
     <h3>Bairros com mais registros</h3>
     <table class="rank">
-      <tr><th>Bairro</th><th>Quantidade</th><th>Por km²</th></tr>
-      {% for r in data.topBairros %}<tr><td>{{ r.nome }}</td><td class="n">{{ r.total }}</td><td>{{ "%.2f"|format(r.dens) }}</td></tr>{% endfor %}
+      <tr><th>Bairro</th><th>Quantidade</th><th>Por km²</th>{% if data.topBairros and data.topBairros[0].hab is not none %}<th>Por 10 mil hab.</th>{% endif %}</tr>
+      {% for r in data.topBairros %}<tr><td>{{ r.nome }}</td><td class="n">{{ r.total }}</td><td>{{ "%.2f"|format(r.dens)|replace(".", ",") }}</td>{% if r.hab is not none %}<td>{{ "%.1f"|format(r.hab)|replace(".", ",") }}</td>{% endif %}</tr>{% endfor %}
     </table>
     <p class="note"><b>Como ler:</b> o mapa mostra a distribuição dos <i>registros coletados</i> no OpenStreetMap,
-      não a capacidade real dos serviços. Quantidade, densidade (por km²) e proximidade são medidas diferentes.</p>
+      não a capacidade real dos serviços. Quantidade, densidade (por km²), taxa por habitante e proximidade são medidas diferentes.
+      A taxa por habitante usa a população do bairro, mas um equipamento atende também moradores de outros bairros.</p>
     <p class="note">O município tem <b>{{ "%.2f"|format(data.areaMunicipioKm2)|replace(".", ",") }} km²</b> (IBGE, Malha Municipal 2025).
       Os {{ s.bairros_analisados }} bairros do IBGE cobrem {{ "%.1f"|format(data.areaBairrosKm2)|replace(".", ",") }} km², a área urbana;
       o restante é área rural, sem bairro oficial, e aparece inteiro no mapa.</p>
     {% if s.fora_dos_bairros %}<p class="note">{{ s.fora_dos_bairros }} registros ficam fora dos {{ s.bairros_analisados }} bairros oficiais (área rural ou não abrangida).</p>{% endif %}
     <div class="foot">
       Dados: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">colaboradores do OpenStreetMap</a> (ODbL), coleta em {{ s.data_coleta or "—" }};
-      IBGE — Malha Municipal 2022 e Bairros do Censo 2022. Gerado em {{ generated_at }}.<br>
+      IBGE — Malha Municipal 2025, Bairros e população do Censo 2022. Gerado em {{ generated_at }}.<br>
       <a href="geosbs_classico.html">Versão clássica (Leaflet)</a> · GeoSBS · UDESC
     </div>
   </section>
@@ -252,6 +259,7 @@
       <button data-a="dens">Densidade<small>por km²</small></button>
       <button data-a="total">Quantidade<small>por bairro</small></button>
       <button data-a="heat">Mapa de calor<small>intensidade</small></button>
+      {% if data.choropleth.hab %}<button data-a="hab" style="grid-column:span 2">Por habitante<small>estabelecimentos por 10 mil moradores (Censo 2022)</small></button>{% endif %}
     </div>
     <h3>Relevo 3D</h3>
     <label class="opt"><input type="checkbox" id="opt3d"><span>Terreno em 3D<small>Elevação real: SRTM/GMTED2010 (USGS), via Terrain Tiles</small></span></label>
@@ -260,7 +268,7 @@
     <div class="row"><button class="chip" id="btnSerra">Vista da Serra do Mar</button><button class="chip" id="btnTop">Vista de cima</button></div>
     <h3>Sobreposições</h3>
     <label class="opt"><input type="checkbox" id="optBairros" checked><span>Limites dos bairros<small>IBGE, Censo 2022</small></span></label>
-    <label class="opt"><input type="checkbox" id="optMun" checked><span>Limite municipal<small>IBGE, Malha 2022</small></span></label>
+    <label class="opt"><input type="checkbox" id="optMun" checked><span>Limite municipal<small>IBGE, Malha 2025</small></span></label>
     <label class="opt"><input type="checkbox" id="optInfra" checked><span>Infraestrutura urbana<small>Ruas, ferrovias e edificações do OpenStreetMap</small></span></label>
     <label class="opt"><input type="checkbox" id="optHill" checked><span>Sombreamento do relevo<small>Calculado do modelo de elevação</small></span></label>
     <label class="opt"><input type="checkbox" id="optEsri"><span>Satélite em alta resolução (Esri, 0,3–0,5 m)<small id="esriNote">Imagens de 2023 a 2025. Desligado: Sentinel-2 (10 m, licença aberta)</small></span></label>
@@ -510,7 +518,9 @@ function addDataLayers() {
     hovered = f.properties.nome;
     map.setFeatureState({ source: "bairros", id: hovered }, { hover: true });
     const p = f.properties, tip = $("#tip");
-    tip.innerHTML = `<b>${esc(p.nome)}</b><br>${fmt(p.total)} estabelecimentos · ${fmt(p.dens, 2)} por km²<br><span style="color:var(--ui-muted)">Área ${fmt(p.area, 2)} km²</span>`;
+    const hab = p.pop == null ? "" : `<br>${fmt(p.pop)} moradores · ${fmt(p.hab, 1)} por 10 mil hab.` +
+      (p.inst ? ` <span style="color:#fbbf24">(taxa instável)</span>` : "");
+    tip.innerHTML = `<b>${esc(p.nome)}</b><br>${fmt(p.total)} estabelecimentos · ${fmt(p.dens, 2)} por km²${hab}<br><span style="color:var(--ui-muted)">Área ${fmt(p.area, 2)} km²</span>`;
     tip.style.left = e.point.x + "px"; tip.style.top = e.point.y + "px"; tip.hidden = false;
   });
   map.on("mouseout", hideTip);
@@ -600,17 +610,18 @@ function applyOverlays() {
   applyBase();
 }
 
+const CHORO = ["total", "dens", "hab"];
 function applyAnalysis() {
   const a = state.analysis;
-  if (a === "total" || a === "dens") {
+  if (CHORO.includes(a)) {
     const cfg = GEO.choropleth[a], cols = GEO.choropleth.colors;
     const n = cfg.breaks.length - 1, pal = cols.slice(-n);
-    const expr = ["step", ["get", a]];
+    const expr = ["step", ["coalesce", ["get", a], 0]];
     expr.push(pal[0]);
     for (let i = 1; i < n; i++) { expr.push(cfg.breaks[i] + 1e-9); expr.push(pal[i]); }
     map.setPaintProperty("bairros-fill", "fill-color", expr);
   }
-  vis("bairros-fill", a === "total" || a === "dens");
+  vis("bairros-fill", CHORO.includes(a));
   vis("heat", a === "heat");
   document.querySelectorAll("#analysis button").forEach(btn => btn.classList.toggle("on", btn.dataset.a === a));
   renderLegend();
@@ -619,11 +630,12 @@ function applyAnalysis() {
 function renderLegend() {
   const L = $("#legend"), parts = [];
   const a = state.analysis;
-  if (a === "total" || a === "dens") {
+  if (CHORO.includes(a)) {
     const cfg = GEO.choropleth[a];
     parts.push(`<div class="ttl">${cfg.title}</div><div class="bins">` +
       cfg.bins.map(b => `<span><i style="background:${b.color}"></i>${b.label.replace(/\./g, ",")}</span>`).join("") +
-      `</div><div class="sub">Classes por quantis. A classe mais clara inclui os bairros sem registros.</div>`);
+      `</div><div class="sub">Classes por quantis. A classe mais clara inclui os bairros sem registros.</div>` +
+      (a === "hab" && cfg.instaveis.length ? `<div class="sub">Taxa instável (menos de ${fmt(cfg.popMin)} moradores): ${cfg.instaveis.map(esc).join(", ")}.</div>` : ""));
   } else if (a === "heat") {
     parts.push(`<div class="ttl">Mapa de calor</div><div class="grad" style="background:linear-gradient(90deg,#ffeda0,#fed976,#fd8d3c,#e31a1c,#800026)"></div>
       <div class="ends"><span>menor concentração</span><span>maior</span></div>

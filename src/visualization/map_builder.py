@@ -28,6 +28,7 @@ from src.data_collection.categories import load_categories
 HEAT_LAYER = "Mapa de calor (estabelecimentos)"
 CHORO_COUNT = "Coroplético: quantidade por bairro"
 CHORO_DENSITY = "Coroplético: densidade (por km²)"
+CHORO_PER_CAPITA = "Coroplético: por 10 mil habitantes"
 # Paleta sequencial (azul-esverdeado claro → escuro), legível para daltônicos.
 # Ícone da aba (SVG embutido, sem requisição extra); o mesmo do mapa principal.
 FAVICON = '<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%23111827%22/%3E%3Cpath%20d%3D%22M32%2012c-8.3%200-15%206.5-15%2014.6C17%2037.5%2032%2052%2032%2052s15-14.5%2015-25.4C47%2018.5%2040.3%2012%2032%2012z%22%20fill%3D%22%2322d3ee%22/%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2226.5%22%20r%3D%225.5%22%20fill%3D%22%23111827%22/%3E%3C/svg%3E">'
@@ -92,21 +93,27 @@ def _popup(row) -> folium.Popup:
     return folium.Popup(body, max_width=320)
 
 
+def _tooltip_fields(table) -> tuple[list[str], list[str]]:
+    fields = ["NM_BAIRRO", "total", "densidade_km2", "area_km2"]
+    aliases = ["Bairro", "Estabelecimentos", "Densidade (por km²)", "Área (km²)"]
+    if "por_10mil_hab" in table:
+        fields += ["populacao", "por_10mil_hab"]
+        aliases += ["Moradores (Censo 2022)", "Por 10 mil habitantes"]
+    return fields, aliases
+
+
 def _choropleth(m, table, field, name, breaks, fmt):
     def style(feature):
-        return {"fillColor": color_for(feature["properties"][field], breaks),
+        return {"fillColor": color_for(feature["properties"][field] or 0, breaks),
                 "color": "#334155", "weight": 1, "fillOpacity": 0.7}
 
+    fields, aliases = _tooltip_fields(table)
     folium.GeoJson(
-        table.to_crs(settings.CRS_WEB)[["NM_BAIRRO", "total", "densidade_km2", "area_km2", "geometry"]],
+        table.to_crs(settings.CRS_WEB)[[*fields, "geometry"]],
         name=name,
         style_function=style,
         highlight_function=lambda f: {"weight": 3, "color": "#0f172a"},
-        tooltip=folium.GeoJsonTooltip(
-            fields=["NM_BAIRRO", "total", "densidade_km2", "area_km2"],
-            aliases=["Bairro", "Estabelecimentos", "Densidade (por km²)", "Área (km²)"],
-            localize=True,
-        ),
+        tooltip=folium.GeoJsonTooltip(fields=fields, aliases=aliases, localize=True),
         show=False,
     ).add_to(m)
 
@@ -133,20 +140,28 @@ def build_map(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame,
         style_function=lambda f: {"fill": False, "color": "#0f172a", "weight": 3, "dashArray": "6 4"},
     ).add_to(m)
 
+    fields, aliases = _tooltip_fields(table)
     folium.GeoJson(
-        table.to_crs(settings.CRS_WEB)[["NM_BAIRRO", "total", "densidade_km2", "geometry"]],
+        table.to_crs(settings.CRS_WEB)[[*fields, "geometry"]],
         name="Bairros (IBGE, Censo 2022)",
         style_function=lambda f: {"fillColor": "#22d3ee", "fillOpacity": 0.04,
                                   "color": "#0891b2", "weight": 1.2},
         highlight_function=lambda f: {"fillOpacity": 0.15, "weight": 2.5},
-        tooltip=folium.GeoJsonTooltip(fields=["NM_BAIRRO", "total", "densidade_km2"],
-                                      aliases=["Bairro", "Estabelecimentos", "Por km²"]),
+        tooltip=folium.GeoJsonTooltip(fields=fields, aliases=aliases, localize=True),
     ).add_to(m)
 
     count_breaks = class_breaks(table["total"].to_numpy())
     dens_breaks = class_breaks(table["densidade_km2"].to_numpy())
     _choropleth(m, table, "total", CHORO_COUNT, count_breaks, "{:.0f}")
     _choropleth(m, table, "densidade_km2", CHORO_DENSITY, dens_breaks, "{:.1f}")
+    legends = [
+        {"title": "Quantidade de estabelecimentos", "bins": legend_bins(count_breaks, 0)},
+        {"title": "Densidade (estabelecimentos por km²)", "bins": legend_bins(dens_breaks, 1)},
+    ]
+    if "por_10mil_hab" in table:
+        hab_breaks = class_breaks(table["por_10mil_hab"].fillna(0).to_numpy())
+        _choropleth(m, table, "por_10mil_hab", CHORO_PER_CAPITA, hab_breaks, "{:.1f}")
+        legends.append({"title": "Estabelecimentos por 10 mil habitantes", "bins": legend_bins(hab_breaks, 1)})
 
     cluster = MarkerCluster(name="Agrupamento de marcadores", control=False,
                             options={"disableClusteringAtZoom": 18}).add_to(m)
@@ -184,10 +199,7 @@ def build_map(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame,
         category_layers=category_layers,
         heat_layer=HEAT_LAYER,
         top_count=table.head(5).to_dict("records"),
-        legends=[
-            {"title": "Quantidade de estabelecimentos", "bins": legend_bins(count_breaks, 0)},
-            {"title": "Densidade (estabelecimentos por km²)", "bins": legend_bins(dens_breaks, 1)},
-        ],
+        legends=legends,
         generated_at=datetime.now().strftime("%d/%m/%Y %H:%M"),
     )
     m.get_root().html.add_child(folium.Element(panel))

@@ -55,7 +55,10 @@ def run(refresh_osm: bool, refresh_ibge: bool, open_browser: bool,
     log.info("1/6 Carregando malhas do IBGE")
     municipio = ibge.load_municipio(refresh_ibge)
     bairros = ibge.load_bairros(refresh_ibge)
+    populacao, pop_municipio = ibge.load_populacao(refresh_ibge)
     log.info("    Município: %s | bairros: %d", municipio.iloc[0]["NM_MUN"], len(bairros))
+    log.info("    População (Censo 2022): %s no município, %s nos bairros",
+             pop_municipio, int(populacao["populacao"].sum()))
 
     log.info("2/6 Coletando pontos no OpenStreetMap")
     bbox_web = municipio.to_crs(settings.CRS_WEB).total_bounds  # minx, miny, maxx, maxy
@@ -92,9 +95,9 @@ def run(refresh_osm: bool, refresh_ibge: bool, open_browser: bool,
                                          encoding="utf-8-sig", sep=";")
 
     log.info("5/6 Calculando indicadores e análises")
-    table = indicators.by_bairro(pois, bairros)
+    table = indicators.by_bairro(pois, bairros, populacao)
     summary = indicators.summary(pois, table)
-    summary["regioes"] = indicators.regions(pois, municipio, table)
+    summary["regioes"] = indicators.regions(pois, municipio, table, pop_municipio)
     proximity = indicators.proximity(pois, bairros)
     patterns = indicators.spatial_patterns(pois, bairros)
     for path in write_reports(summary, table, proximity, patterns, quality, duplicates, rejected):

@@ -51,6 +51,23 @@
         "Rio Vermelho Povoado"
       ]
     },
+    "bairro_maior_por_hab": {
+      "bairro": "Centro",
+      "valor": 84.0
+    },
+    "bairro_menor_por_hab": {
+      "bairro": "Dona Francisca",
+      "valor": 0.0,
+      "empatados": [
+        "Dona Francisca",
+        "Alpino"
+      ]
+    },
+    "bairros_taxa_instavel": [
+      "Bela Aliança",
+      "Industrial Sudoeste",
+      "Rio Vermelho Povoado"
+    ],
     "data_coleta": "2026-11-17T17:41:17",
     "regioes": {
       "tabela": [
@@ -60,7 +77,9 @@
           "total": 115,
           "densidade_km2": 1.4,
           "pct_area": 16.6,
-          "pct_registros": 91.3
+          "pct_registros": 91.3,
+          "populacao": 77798,
+          "por_10mil_hab": 14.8
         },
         {
           "regiao": "Fora dos bairros (área rural e lacunas)",
@@ -68,14 +87,18 @@
           "total": 11,
           "densidade_km2": 0.03,
           "pct_area": 83.4,
-          "pct_registros": 8.7
+          "pct_registros": 8.7,
+          "populacao": 5479,
+          "por_10mil_hab": 20.1
         }
       ],
       "fora_por_categoria": {
         "Outros pontos de interesse": 9,
         "Educação": 1,
         "Serviços públicos": 1
-      }
+      },
+      "populacao_municipio": 83277,
+      "por_10mil_hab_municipio": 15.1
     }
   },
   "qualidade": {

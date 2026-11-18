@@ -18,6 +18,7 @@ from datetime import datetime
 from pathlib import Path
 
 import geopandas as gpd
+import pandas as pd
 import numpy as np
 import shapely
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -128,8 +129,10 @@ def build_data(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame,
                  "fonte": "fonte", "id_fonte": "id_fonte", "lat": "lat", "lon": "lon",
                  "estab": "estab"}
 
+    has_pop = "por_10mil_hab" in table
+    pop_cols = ["populacao", "por_10mil_hab", "taxa_instavel"] if has_pop else []
     bairros_web = display_polygons(table[["NM_BAIRRO", "total", "densidade_km2",
-                                          "area_km2", "geometry"]])
+                                          "area_km2", *pop_cols, "geometry"]])
     bairro_list = []
     for row in table.to_crs(settings.CRS_WEB).itertuples(index=False):
         minx, miny, maxx, maxy = row.geometry.bounds
@@ -144,6 +147,21 @@ def build_data(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame,
     mask, nav_bounds = focus_geometry(municipio)
     count_breaks = class_breaks(table["total"].to_numpy())
     dens_breaks = class_breaks(table["densidade_km2"].to_numpy())
+    choropleth = {
+        "colors": SEQ_COLORS,
+        "total": {"breaks": count_breaks, "bins": legend_bins(count_breaks, 0),
+                  "title": "Estabelecimentos por bairro"},
+        "dens": {"breaks": dens_breaks, "bins": legend_bins(dens_breaks, 1),
+                 "title": "Estabelecimentos por km²"},
+    }
+    bairro_props = {"nome": "NM_BAIRRO", "total": "total", "dens": "densidade_km2", "area": "area_km2"}
+    if has_pop:
+        hab_breaks = class_breaks(table["por_10mil_hab"].fillna(0).to_numpy())
+        choropleth["hab"] = {"breaks": hab_breaks, "bins": legend_bins(hab_breaks, 1),
+                             "title": "Estabelecimentos por 10 mil habitantes",
+                             "instaveis": table.loc[table["taxa_instavel"], "NM_BAIRRO"].tolist(),
+                             "popMin": settings.POP_MIN_TAXA}
+        bairro_props |= {"pop": "populacao", "hab": "por_10mil_hab", "inst": "taxa_instavel"}
 
     return {
         "categories": [
@@ -154,8 +172,7 @@ def build_data(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame,
         ],
         "pois": _features(pts[~not_est], poi_props),
         "paradas": _features(pts[not_est], poi_props),
-        "bairros": _features(bairros_web, {"nome": "NM_BAIRRO", "total": "total",
-                                           "dens": "densidade_km2", "area": "area_km2"}),
+        "bairros": _features(bairros_web, bairro_props),
         "municipio": _features(display_polygons(municipio[["NM_MUN", "geometry"]]),
                                {"nome": "NM_MUN"}),
         "bairroList": bairro_list,
@@ -163,16 +180,11 @@ def build_data(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame,
         "mask": mask,
         "areaMunicipioKm2": round(float(municipio.to_crs(settings.CRS_METRIC).area.sum()) / 1e6, 2),
         "areaBairrosKm2": round(float(table["area_km2"].sum()), 1),
-        "choropleth": {
-            "colors": SEQ_COLORS,
-            "total": {"breaks": count_breaks, "bins": legend_bins(count_breaks, 0),
-                      "title": "Estabelecimentos por bairro"},
-            "dens": {"breaks": dens_breaks, "bins": legend_bins(dens_breaks, 1),
-                     "title": "Estabelecimentos por km²"},
-        },
+        "choropleth": choropleth,
         "summary": _jsonable(summary),
-        "topBairros": [{"nome": r.NM_BAIRRO, "total": int(r.total), "dens": float(r.densidade_km2)}
-                       for r in table.head(5).itertuples(index=False)],
+        "topBairros": [{"nome": r["NM_BAIRRO"], "total": int(r["total"]), "dens": float(r["densidade_km2"]),
+                        "hab": (float(r["por_10mil_hab"]) if has_pop and pd.notna(r["por_10mil_hab"]) else None)}
+                       for _, r in table.head(5).iterrows()],
     }
 
 

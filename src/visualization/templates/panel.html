@@ -58,8 +58,17 @@
       {% if s.bairro_maior_quantidade %}
       <div class="geo-kpi"><small>Maior quantidade</small><b style="font-size:14px">{{ s.bairro_maior_quantidade.bairro }}</b><small>{{ s.bairro_maior_quantidade.valor }} registros</small></div>
       <div class="geo-kpi"><small>Maior densidade</small><b style="font-size:14px">{{ s.bairro_maior_densidade.bairro }}</b><small>{{ "%.1f"|format(s.bairro_maior_densidade.valor) }} por km²</small></div>
-      <div class="geo-kpi"><small>Menor quantidade</small><b style="font-size:14px">{{ s.bairro_menor_quantidade.bairro }}</b><small>{{ s.bairro_menor_quantidade.valor }} registros</small></div>
+      {% set mq = s.bairro_menor_quantidade %}
+      {% if mq.empatados and s.bairro_menor_densidade.empatados == mq.empatados %}
+      <div class="geo-kpi wide"><small>Menor quantidade e densidade · {{ mq.empatados|length }} bairros empatados com {{ mq.valor }} registros</small><b style="font-size:13px;font-weight:500">{{ mq.empatados|join(", ") }}</b></div>
+      {% else %}
+      <div class="geo-kpi"><small>Menor quantidade</small><b style="font-size:14px">{{ mq.bairro }}</b><small>{{ mq.valor }} registros</small></div>
       <div class="geo-kpi"><small>Menor densidade</small><b style="font-size:14px">{{ s.bairro_menor_densidade.bairro }}</b><small>{{ "%.1f"|format(s.bairro_menor_densidade.valor) }} por km²</small></div>
+      {% endif %}
+      {% endif %}
+      {% if s.bairro_maior_por_hab %}
+      <div class="geo-kpi"><small>Maior por habitante</small><b style="font-size:14px">{{ s.bairro_maior_por_hab.bairro }}</b><small>{{ "%.1f"|format(s.bairro_maior_por_hab.valor) }} por 10 mil hab.</small></div>
+      <div class="geo-kpi"><small>Menor por habitante</small><b style="font-size:14px">{{ (s.bairro_menor_por_hab.empatados or [s.bairro_menor_por_hab.bairro])|join(", ") }}</b><small>{{ "%.1f"|format(s.bairro_menor_por_hab.valor) }} por 10 mil hab.</small></div>
       {% endif %}
     </div>
 
@@ -116,7 +125,7 @@
 
     <div class="geo-foot">
       Fontes: © <a href="https://www.openstreetmap.org/copyright" target="_blank">colaboradores do OpenStreetMap</a> (ODbL),
-      coleta em {{ s.data_coleta or "—" }}; IBGE: Malha Municipal 2022 e Malha de Bairros do Censo 2022.<br>
+      coleta em {{ s.data_coleta or "—" }}; IBGE: Malha Municipal 2025, Malha de Bairros e população do Censo 2022.<br>
       Gerado em {{ generated_at }} · GeoSBS · UDESC – Bacharelado em Sistemas de Informação.
     </div>
   </div>

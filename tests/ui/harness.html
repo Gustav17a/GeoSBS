@@ -46,7 +46,7 @@ f.onload = async () => {
     w.geoAll(false); await idle(); R.ocultarTodas = await estavel();
     w.geoAll(true); await idle(); R.mostrarTodas = await estavel();
 
-    for (const a of ["dens", "total"]) {
+    for (const a of ["dens", "total", "hab"]) {
       doc.querySelector(`#analysis button[data-a=${a}]`).click(); await idle();
       R["coropletico_" + a] = new Set(m.queryRenderedFeatures({ layers: ["bairros-fill"] }).map(x => x.properties.nome)).size;
     }

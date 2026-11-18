@@ -368,3 +368,92 @@ def test_summary_lists_ties(overpass_file, municipio, bairros):
     low = indicators.summary(pois, table)["bairro_menor_quantidade"]
     zeros = table.loc[table["total"] == low["valor"], "NM_BAIRRO"].tolist()
     assert len(zeros) < 2 or sorted(low["empatados"]) == sorted(zeros)
+
+
+# --- População (Censo 2022) e indicador por habitante -------------------------
+
+def _pop():
+    # Leste tem menos de 500 moradores: taxa instável.
+    return pd.DataFrame({"CD_BAIRRO": ["1", "2", "3"], "populacao": [1000, 400, 2000]})
+
+
+def test_per_capita_by_bairro_and_unstable_rates(overpass_file, municipio, bairros):
+    pois, *_ = _processed(overpass_file, municipio, bairros)
+    table = indicators.by_bairro(pois, bairros, _pop()).set_index("NM_BAIRRO")
+    assert table.loc["Oeste", "por_10mil_hab"] == 10.0     # 1 registro / 1.000 hab.
+    assert table.loc["Leste", "por_10mil_hab"] == 50.0     # 2 / 400
+    assert table.loc["Vazio", "por_10mil_hab"] == 0.0
+    assert table["taxa_instavel"].to_dict() == {"Oeste": False, "Leste": True, "Vazio": False}
+    s = indicators.summary(pois, table.reset_index())
+    # Leste tem a maior taxa, mas é instável: o destaque vai para Oeste.
+    assert s["bairro_maior_por_hab"] == {"bairro": "Oeste", "valor": 10.0}
+    assert s["bairro_menor_por_hab"]["bairro"] == "Vazio"
+    assert s["bairros_taxa_instavel"] == ["Leste"]
+
+
+def test_per_capita_is_optional(overpass_file, municipio, bairros):
+    pois, *_ = _processed(overpass_file, municipio, bairros)
+    table = indicators.by_bairro(pois, bairros)
+    assert "por_10mil_hab" not in table
+    assert "bairro_maior_por_hab" not in indicators.summary(pois, table)
+    assert "populacao" not in indicators.regions(pois, municipio, table)["tabela"][0]
+
+
+def test_regions_population_adds_up(overpass_file, municipio, bairros):
+    pois, *_ = _processed(overpass_file, municipio, bairros)
+    table = indicators.by_bairro(pois, bairros, _pop())
+    reg = indicators.regions(pois, municipio, table, pop_municipio=5000)
+    assert [r["populacao"] for r in reg["tabela"]] == [3400, 1600]
+    n_est = len(indicators.establishments(pois))
+    assert reg["por_10mil_hab_municipio"] == round(10_000 * n_est / 5000, 1)
+
+
+def test_load_populacao_reads_ibge_aggregates(tmp_path, monkeypatch):
+    """Lê o CSV do IBGE (latin-1, ';', V0001) e filtra o município pelo código."""
+    import zipfile
+    from config import settings
+    from src.data_collection import ibge
+    monkeypatch.setattr(settings, "SHAPEFILES_DIR", tmp_path)
+    monkeypatch.setattr(settings, "MUNICIPIO_CODIGO_IBGE", "4215802")
+    files = {
+        settings.IBGE_POP_BAIRROS_URL: '"CD_BAIRRO";"NM_BAIRRO";"CD_MUN";"v0001";"v0002"\r\n'
+            '"4215802001";"Centro";"4215802";"5235";"2526"\r\n'
+            '"4215802009";"Bela Aliança";"4215802";"488";"199"\r\n'
+            '"1100015001";"Centro";"1100015";"1213";"637"\r\n',
+        settings.IBGE_POP_MUNICIPIOS_URL: '"CD_MUN";"NM_MUN";"v0001"\r\n'
+            '"4215802";"São Bento do Sul";"83277"\r\n"1100015";"Outro";"21494"\r\n',
+    }
+    for url, text in files.items():
+        with zipfile.ZipFile(tmp_path / url.rsplit("/", 1)[-1], "w") as z:
+            z.writestr("dados.csv", text.encode("latin-1"))
+    bairros, total = ibge.load_populacao()
+    assert total == 83277
+    assert bairros.set_index("CD_BAIRRO")["populacao"].to_dict() == {"4215802001": 5235, "4215802009": 488}
+
+
+def test_maps_show_per_capita_and_ties(tmp_path, overpass_file, municipio, bairros):
+    import json
+    import re
+    from src.analytics.report import write_reports
+    from src.visualization.map_builder import build_map
+    from src.visualization.maplibre_builder import build_web_map
+    pois, rejected, quality, dups = _processed(overpass_file, municipio, bairros)
+    table = indicators.by_bairro(pois, bairros, _pop())
+    s = indicators.summary(pois, table)
+    s["regioes"] = indicators.regions(pois, municipio, table, pop_municipio=5000)
+
+    html = build_web_map(pois, municipio, table, s, tmp_path / "w.html").read_text(encoding="utf-8")
+    data = json.loads(re.search(r"const GEO = (\{.*?\});\n", html, flags=re.S).group(1))
+    assert 'data-a="hab"' in html and data["choropleth"]["hab"]["instaveis"] == ["Leste"]
+    props = {f["properties"]["nome"]: f["properties"] for f in data["bairros"]["features"]}
+    assert props["Leste"]["pop"] == 400 and props["Leste"]["inst"] is True
+
+    classic = build_map(pois, municipio, table, s, tmp_path / "c.html").read_text(encoding="utf-8")
+    assert "por 10 mil habitantes" in classic and "Maior por habitante" in classic   # Folium escapa acentos
+
+    s["bairro_menor_quantidade"] = {"bairro": "A", "valor": 0, "empatados": ["A", "B"]}
+    write_reports(s, table, pd.DataFrame(), pd.DataFrame(), {"registros_finais": len(pois)},
+                  dups, rejected, out_dir=tmp_path)
+    md = (tmp_path / "resultados.md").read_text(encoding="utf-8")
+    assert "Menor quantidade: **A, B**" in md            # empate: todos os bairros, não só um
+    assert "Por 10 mil hab." in md and "50.0 *" in md      # taxa instável marcada

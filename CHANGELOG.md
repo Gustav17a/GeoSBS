@@ -2,6 +2,19 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## [1.3.0] — 2026-11-18
+### Adicionado
+- População do Censo 2022 por bairro e município (IBGE, Agregados – básico, V0001), baixada
+  automaticamente e ligada pelo código do bairro.
+- Taxa de estabelecimentos por 10 mil habitantes: tabela, relatório, CSV, coroplético "Por
+  habitante" nos dois mapas, população no balão do bairro e na região "fora dos bairros".
+- Aviso de taxa instável para bairros com menos de 500 moradores.
+### Corrigido
+- Mapa clássico listava só um dos 4 bairros empatados em "menor quantidade/densidade".
+- Rótulos "Malha 2022" restantes atualizados para a Malha Municipal 2025.
+### Alterado
+- CI: `actions/checkout` e `actions/setup-python` na versão 7.
+
 ## [1.2.0] — 2026-11-18
 ### Adicionado
 - Teste de significância de Monte Carlo no índice de Clark-Evans (999 sorteios na área real

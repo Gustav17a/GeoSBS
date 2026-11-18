@@ -22,6 +22,12 @@ Coleta OSM: 2026-11-17T17:41:17. Todos os números abaixo foram calculados pelo 
 - Categoria com mais registros: **Lazer e espaços públicos**
 - Bairros analisados: 20 (16 com ao menos um registro)
 - Registros fora dos bairros oficiais: 11
+- Maior quantidade: **Centro**
+- Menor quantidade: **Industrial Sudoeste, Dona Francisca, Alpino, Rio Vermelho Povoado**
+- Maior densidade: **Centro**
+- Menor densidade: **Industrial Sudoeste, Dona Francisca, Alpino, Rio Vermelho Povoado**
+- Maior por habitante: **Centro** (84.0 por 10 mil hab.)
+- Menor por habitante: **Dona Francisca, Alpino** (0.0 por 10 mil hab.)
 
 ### Por categoria
 | Categoria | Registros |
@@ -36,36 +42,42 @@ Coleta OSM: 2026-11-17T17:41:17. Todos os números abaixo foram calculados pelo 
 | Outros pontos de interesse | 19 |
 
 ## Área urbana × fora dos bairros
-| Região | Área (km²) | Estabelecimentos | Por km² | % da área | % dos registros |
-|---|---|---|---|---|---|
-| Área urbana (bairros do IBGE) | 82.1 | 115 | 1.4 | 16.6 | 91.3 |
-| Fora dos bairros (área rural e lacunas) | 412.8 | 11 | 0.03 | 83.4 | 8.7 |
+| Região | Área (km²) | Estabelecimentos | Por km² | % da área | % dos registros | População | Por 10 mil hab. |
+|---|---|---|---|---|---|---|---|
+| Área urbana (bairros do IBGE) | 82.1 | 115 | 1.4 | 16.6 | 91.3 | 77798 | 14.8 |
+| Fora dos bairros (área rural e lacunas) | 412.8 | 11 | 0.03 | 83.4 | 8.7 | 5479 | 20.1 |
 
 Fora dos bairros, por categoria: Outros pontos de interesse 9, Educação 1, Serviços públicos 1.
 
-## Por bairro (quantidade e densidade)
-| Bairro | Área (km²) | Total | Por km² | % do total |
-|---|---|---|---|---|
-| Centro | 2.977 | 44 | 14.78 | 38.3 |
-| Oxford | 2.649 | 15 | 5.66 | 13.0 |
-| Serra Alta | 12.055 | 11 | 0.91 | 9.6 |
-| Colonial | 4.969 | 8 | 1.61 | 7.0 |
-| Centenário | 4.258 | 8 | 1.88 | 7.0 |
-| Brasília | 6.265 | 5 | 0.8 | 4.3 |
-| Boehmerwald | 2.909 | 4 | 1.37 | 3.5 |
-| Mato Preto | 3.087 | 4 | 1.3 | 3.5 |
-| Schramm | 3.3 | 4 | 1.21 | 3.5 |
-| Progresso | 6.131 | 3 | 0.49 | 2.6 |
-| Rio Negro | 3.248 | 3 | 0.92 | 2.6 |
-| Cruzeiro | 4.748 | 2 | 0.42 | 1.7 |
-| Lençol | 4.218 | 1 | 0.24 | 0.9 |
-| Vinte e Cinco de Julho | 3.679 | 1 | 0.27 | 0.9 |
-| Rio Vermelho - Estação | 2.957 | 1 | 0.34 | 0.9 |
-| Bela Aliança | 4.556 | 1 | 0.22 | 0.9 |
-| Industrial Sudoeste | 1.895 | 0 | 0.0 | 0.0 |
-| Dona Francisca | 4.286 | 0 | 0.0 | 0.0 |
-| Alpino | 2.789 | 0 | 0.0 | 0.0 |
-| Rio Vermelho Povoado | 1.135 | 0 | 0.0 | 0.0 |
+Município inteiro: 83277 habitantes (Censo 2022), 15.1 estabelecimentos por 10 mil habitantes.
+
+## Por bairro (quantidade, densidade e por habitante)
+| Bairro | Área (km²) | Total | Por km² | % do total | População | Por 10 mil hab. |
+|---|---|---|---|---|---|---|
+| Centro | 2.977 | 44 | 14.78 | 38.3 | 5235 | 84.0 |
+| Oxford | 2.649 | 15 | 5.66 | 13.0 | 3386 | 44.3 |
+| Serra Alta | 12.055 | 11 | 0.91 | 9.6 | 12167 | 9.0 |
+| Colonial | 4.969 | 8 | 1.61 | 7.0 | 5955 | 13.4 |
+| Centenário | 4.258 | 8 | 1.88 | 7.0 | 5789 | 13.8 |
+| Brasília | 6.265 | 5 | 0.8 | 4.3 | 6394 | 7.8 |
+| Boehmerwald | 2.909 | 4 | 1.37 | 3.5 | 2161 | 18.5 |
+| Mato Preto | 3.087 | 4 | 1.3 | 3.5 | 3481 | 11.5 |
+| Schramm | 3.3 | 4 | 1.21 | 3.5 | 4834 | 8.3 |
+| Progresso | 6.131 | 3 | 0.49 | 2.6 | 4374 | 6.9 |
+| Rio Negro | 3.248 | 3 | 0.92 | 2.6 | 4262 | 7.0 |
+| Cruzeiro | 4.748 | 2 | 0.42 | 1.7 | 6551 | 3.1 |
+| Lençol | 4.218 | 1 | 0.24 | 0.9 | 3103 | 3.2 |
+| Vinte e Cinco de Julho | 3.679 | 1 | 0.27 | 0.9 | 4190 | 2.4 |
+| Rio Vermelho - Estação | 2.957 | 1 | 0.34 | 0.9 | 1292 | 7.7 |
+| Bela Aliança | 4.556 | 1 | 0.22 | 0.9 | 488 | 20.5 * |
+| Industrial Sudoeste | 1.895 | 0 | 0.0 | 0.0 | 93 | 0.0 * |
+| Dona Francisca | 4.286 | 0 | 0.0 | 0.0 | 2083 | 0.0 |
+| Alpino | 2.789 | 0 | 0.0 | 0.0 | 1659 | 0.0 |
+| Rio Vermelho Povoado | 1.135 | 0 | 0.0 | 0.0 | 301 | 0.0 * |
+
+_* Menos de 500 habitantes: um único registro muda muito a taxa; esses bairros ficam fora dos destaques de maior e menor._
+
+_População: Censo 2022 (IBGE, V0001 = total de pessoas). A taxa por bairro não mede o atendimento: um equipamento serve moradores de outros bairros._
 
 ## Proximidade (ponto representativo do bairro → unidade mais próxima, em metros, linha reta)
 | Bairro | dist_saude_m | dist_educacao_m | dist_farmacias_m |
