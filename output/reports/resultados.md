@@ -35,6 +35,14 @@ Coleta OSM: 2026-11-17T17:41:17. Todos os números abaixo foram calculados pelo 
 | Lazer e espaços públicos | 34 |
 | Outros pontos de interesse | 19 |
 
+## Área urbana × fora dos bairros
+| Região | Área (km²) | Estabelecimentos | Por km² | % da área | % dos registros |
+|---|---|---|---|---|---|
+| Área urbana (bairros do IBGE) | 82.1 | 115 | 1.4 | 16.6 | 91.3 |
+| Fora dos bairros (área rural e lacunas) | 412.8 | 11 | 0.03 | 83.4 | 8.7 |
+
+Fora dos bairros, por categoria: Outros pontos de interesse 9, Educação 1, Serviços públicos 1.
+
 ## Por bairro (quantidade e densidade)
 | Bairro | Área (km²) | Total | Por km² | % do total |
 |---|---|---|---|---|
@@ -83,16 +91,16 @@ Coleta OSM: 2026-11-17T17:41:17. Todos os números abaixo foram calculados pelo 
 | Rio Vermelho Povoado | 5481.0 | 4083.0 | 5537.0 |
 | Bela Aliança | 4155.0 | 1457.0 | 4257.0 |
 
-## Padrão espacial (índice do vizinho mais próximo de Clark-Evans, área dos bairros)
-| categoria | n | dist_media_obs_m | dist_media_esperada_m | R | padrao |
-|---|---|---|---|---|---|
-| Farmácias | 7 | 934.2 | 1712.5 | 0.546 | agrupado |
-| Saúde | 14 | 786.8 | 1210.9 | 0.65 | agrupado |
-| Educação | 25 | 681.0 | 906.2 | 0.752 | agrupado |
-| Segurança pública | 4 | 1841.5 | 2265.4 | 0.813 | agrupado |
-| Transporte | 5 | 1946.6 | 2026.2 | 0.961 | próximo do aleatório |
-| Serviços públicos | 16 | 425.6 | 1132.7 | 0.376 | agrupado |
-| Lazer e espaços públicos | 34 | 574.3 | 777.0 | 0.739 | agrupado |
-| Outros pontos de interesse | 10 | 881.2 | 1432.7 | 0.615 | agrupado |
+## Padrão espacial (índice do vizinho mais próximo de Clark-Evans, teste de Monte Carlo na área dos bairros)
+| categoria | n | dist_media_obs_m | dist_media_esperada_m | R | p_valor | padrao |
+|---|---|---|---|---|---|---|
+| Farmácias | 7 | 934.2 | 2389.7 | 0.391 | 0.004 | agrupado |
+| Saúde | 14 | 786.8 | 1587.6 | 0.496 | 0.002 | agrupado |
+| Educação | 25 | 681.0 | 1153.8 | 0.59 | 0.002 | agrupado |
+| Segurança pública | 4 | 1841.5 | 3395.8 | 0.542 | 0.146 | não significativo |
+| Transporte | 5 | 1946.6 | 2929.5 | 0.664 | 0.254 | não significativo |
+| Serviços públicos | 16 | 425.6 | 1482.4 | 0.287 | 0.002 | agrupado |
+| Lazer e espaços públicos | 34 | 574.3 | 969.7 | 0.592 | 0.002 | agrupado |
+| Outros pontos de interesse | 10 | 881.2 | 1931.4 | 0.456 | 0.006 | agrupado |
 
-_R < 1 sugere agrupamento; R ≈ 1, distribuição aleatória; R > 1, dispersão. Sem correção de efeito de borda._
+_R < 1 sugere agrupamento; R ≈ 1, distribuição aleatória; R > 1, dispersão. Distância esperada = média de 999 sorteios de pontos aleatórios dentro da área real dos bairros (Monte Carlo; inclui efeito de borda e formato irregular). O padrão só é declarado se p < 0,05; caso contrário, "não significativo"._

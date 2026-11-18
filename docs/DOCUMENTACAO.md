@@ -91,7 +91,10 @@ pequenas.
 
 **Análise de padrões de pontos.** O índice de Clark e Evans (1954) compara a distância média
 observada ao vizinho mais próximo com a esperada numa distribuição aleatória. Valores menores
-que 1 indicam agrupamento. A primeira lei da Geografia, segundo a qual coisas próximas são mais
+que 1 indicam agrupamento. A significância pode ser avaliada por um teste de Monte Carlo, que
+compara o valor observado com distribuições aleatórias simuladas na própria área de estudo
+(BESAG; DIGGLE, 1977), contornando o efeito de borda das fórmulas analíticas (DONNELLY, 1978).
+A primeira lei da Geografia, segundo a qual coisas próximas são mais
 relacionadas que as distantes (TOBLER, 1970), fundamenta esse tipo de análise. Resultados
 agregados por áreas dependem do recorte adotado, o Problema da Unidade de Área Modificável
 (OPENSHAW, 1984).
@@ -104,9 +107,9 @@ agregados por áreas dependem do recorte adotado, o Problema da Unidade de Área
 | Classificação | Regras de tags OSM → 8 categorias (`config/categories.json`), com condições opcionais por regra (ex.: centro comunitário só é serviço público com operador público); elementos que não casam são descartados e contados no relatório de qualidade. |
 | Validação | Coordenadas ausentes ou fora da faixa → rejeitadas; pontos fora do polígono municipal (tolerância de 50 m) → rejeitados; nome/endereço ausentes → mantidos com sinalização. Endereços ausentes recebem a rua mais próxima por geocodificação reversa (Nominatim, 1 requisição/s, com cache), marcada como aproximada. |
 | Deduplicação | Mesma categoria, distância ≤ 75 m e similaridade de nome ≥ 0,85; mantém-se o registro mais completo. |
-| Análise espacial | Junção ponto-em-polígono para atribuir bairro; área em km² na projeção UTM 22S; densidade = registros/km²; proximidade = distância em linha reta do ponto representativo do bairro à unidade mais próxima; índice de Clark-Evans por categoria. |
+| Análise espacial | Junção ponto-em-polígono para atribuir bairro; área em km² na projeção UTM 22S; densidade = registros/km²; proximidade = distância em linha reta do ponto representativo do bairro à unidade mais próxima; índice de Clark-Evans por categoria com teste de Monte Carlo (999 sorteios na área dos bairros, p < 0,05); região "fora dos bairros" (município − bairros) com quantidade e densidade próprias. |
 | Visualização | MapLibre GL JS: mapa vetorial (OpenFreeMap/OSM), satélite Esri World Imagery (alta resolução, com chave) ou Sentinel-2 (EOxCloudless), relevo sombreado e hipsométrico e terreno 3D a partir de elevação real (SRTM/GMTED2010); ícones SVG por categoria, clusters, mapa de calor, coropléticos e painel HTML/CSS/JS. Versão clássica em Folium (Leaflet) como alternativa sem WebGL. |
-| Verificação | 39 testes automatizados (pytest); conferência da área calculada com a oficial; teste de interface automatizado num navegador real (`tests/ui/run_ui_tests.py`, 21 verificações: enquadramento, navegação, filtros, mapa de calor, coropléticos, mapas-base, popups, clusters e 3D); inspeção visual do mapa. |
+| Verificação | 44 testes automatizados (pytest); conferência da área calculada com a oficial; teste de interface automatizado num navegador real (`tests/ui/run_ui_tests.py`, 21 verificações: enquadramento, navegação, filtros, mapa de calor, coropléticos, mapas-base, popups, clusters e 3D); inspeção visual do mapa. |
 
 Paradas de ônibus são exibidas no mapa, mas excluídas das contagens de estabelecimentos e do
 mapa de calor, para não distorcer a comparação entre bairros.
@@ -268,28 +271,54 @@ educação estão em Rio Vermelho Povoado (5,5 km e 4,1 km) e até farmácia, em
 Proximidade não acompanha quantidade: Centenário tem 8 registros, mas está a 3,8 km da unidade
 de saúde registrada mais próxima; Schramm tem só 4 registros, mas está a 230 m de uma.
 
-**Padrão espacial — índice do vizinho mais próximo de Clark-Evans** (pontos dentro dos
-bairros; por isso *n* pode ser menor que o total da categoria):
+**Padrão espacial — índice do vizinho mais próximo de Clark-Evans com teste de Monte Carlo**
+(pontos dentro dos bairros; por isso *n* pode ser menor que o total da categoria). A distância
+esperada é a média de 999 sorteios de *n* pontos aleatórios dentro da área real dos bairros, e o
+p-valor é a proporção de sorteios tão extremos quanto o observado:
 
-| Categoria | n | Dist. média observada (m) | Dist. esperada se aleatório (m) | R | Leitura |
-|---|---:|---:|---:|---:|---|
-| Serviços públicos | 16 | 425,6 | 1.132,7 | 0,38 | agrupado |
-| Farmácias | 7 | 934,2 | 1.712,5 | 0,55 | agrupado |
-| Outros pontos de interesse | 10 | 881,2 | 1.432,7 | 0,62 | agrupado |
-| Saúde | 14 | 786,8 | 1.210,9 | 0,65 | agrupado |
-| Lazer e espaços públicos | 34 | 574,3 | 777,0 | 0,74 | agrupado |
-| Educação | 25 | 681,0 | 906,2 | 0,75 | agrupado |
-| Segurança pública | 4 | 1.841,5 | 2.265,4 | 0,81 | agrupado |
-| Transporte | 5 | 1.946,6 | 2.026,2 | 0,96 | próximo do aleatório |
+| Categoria | n | Dist. média observada (m) | Dist. esperada se aleatório (m) | R | p-valor | Leitura |
+|---|---:|---:|---:|---:|---:|---|
+| Serviços públicos | 16 | 425,6 | 1.482,4 | 0,29 | 0,002 | agrupado |
+| Farmácias | 7 | 934,2 | 2.389,7 | 0,39 | 0,004 | agrupado |
+| Outros pontos de interesse | 10 | 881,2 | 1.931,4 | 0,46 | 0,006 | agrupado |
+| Saúde | 14 | 786,8 | 1.587,6 | 0,50 | 0,002 | agrupado |
+| Educação | 25 | 681,0 | 1.153,8 | 0,59 | 0,002 | agrupado |
+| Lazer e espaços públicos | 34 | 574,3 | 969,7 | 0,59 | 0,002 | agrupado |
+| Segurança pública | 4 | 1.841,5 | 3.395,8 | 0,54 | 0,146 | não significativo |
+| Transporte | 5 | 1.946,6 | 2.929,5 | 0,66 | 0,254 | não significativo |
 
-Interpretação: em sete das oito categorias R < 1, o que indica tendência de agrupamento,
-coerente com a concentração de registros no Centro. O resultado deve ser lido com cautela:
-(1) não foi feito teste de significância estatística; (2) categorias com poucos pontos
-(Segurança, n = 4; Transporte, n = 5; Farmácias, n = 7) produzem valores instáveis, e o
-resultado é sensível às regras de classificação — ao tirar 5 centros comunitários de Serviços
-públicos, o R dessa categoria passou de 0,61 para 0,38;
-(3) não há correção de efeito de borda; e (4) o índice mede o padrão **dos registros do OSM**,
-que também reflete onde os mapeadores atuaram mais.
+(p = 0,002 é o menor valor possível com 999 sorteios.)
+
+Interpretação: seis das oito categorias são **agrupadas de forma estatisticamente significativa**
+(p < 0,01), coerente com a concentração de registros no Centro. Em Segurança pública (n = 4) e
+Transporte (n = 5) o R também é menor que 1, mas, com tão poucos pontos, **não é possível
+descartar o acaso**: o resultado é "não significativo", e não "aleatório". Cuidados: o índice
+mede o padrão **dos registros do OSM**, que também reflete onde os mapeadores atuaram mais; e o
+resultado é sensível às regras de classificação (ao tirar 5 centros comunitários de Serviços
+públicos, essa categoria ficou mais agrupada).
+
+*Por que Monte Carlo.* A fórmula original de Clark e Evans ignora o efeito de borda: perto do
+limite falta vizinho do lado de fora, as distâncias ficam maiores e, com poucos pontos, pontos
+aleatórios parecem "dispersos". Numa simulação com 400 sorteios por cenário, a fórmula original
+declarou padrão significativo em 18% a 26% de distribuições **aleatórias** (o esperado é 5%). A
+correção analítica de Donnelly (1978) resolve isso em áreas compactas (4,8% de falsos positivos
+num retângulo), mas depende do perímetro e exagera a correção em áreas recortadas: a área dos
+bairros tem 122 km de perímetro, 3,8 vezes o de um círculo de mesma área. O teste de Monte Carlo
+(BESAG; DIGGLE, 1977) usa o formato real da área e não depende dessa suposição. Para comparação,
+a distância esperada para Farmácias é 1.713 m pela fórmula original, 2.875 m com Donnelly e
+2.390 m por Monte Carlo.
+
+**Área urbana × fora dos bairros** (`output/reports/por_regiao.csv`):
+
+| Região | Área | Estabelecimentos | Por km² |
+|---|---:|---:|---:|
+| Área urbana (20 bairros do IBGE) | 82,1 km² (16,6%) | 115 (91,3%) | 1,40 |
+| Fora dos bairros (área rural e lacunas) | 412,8 km² (83,4%) | 11 (8,7%) | 0,03 |
+
+Fora dos bairros estão 83% do território e 9% dos registros, com densidade 47 vezes menor que a
+da área urbana. Os 11 registros são 9 pontos de interesse turísticos ou de lazer rural, o campus
+do Instituto Federal Catarinense (lacuna da malha de bairros) e o Centro Comunitário Santinor da
+Silva. A região não entra no ranking de bairros, porque não é um bairro.
 
 **Leitura dos resultados:** quantidade responde "onde há mais registros" (Centro, Oxford,
 Serra Alta); densidade responde "onde eles estão mais concentrados por km²" e favorece bairros
@@ -305,8 +334,9 @@ do limite do bairro.
   diferir dos limites da lei municipal. Não foi encontrado *shapefile* oficial da Prefeitura.
 - **Proximidade em linha reta:** não considera ruas, relevo (relevante em São Bento do Sul),
   horários ou capacidade de atendimento.
-- **MAUP e efeito de borda:** resultados dependem do recorte por bairros; o índice de
-  Clark-Evans não tem correção de borda nem teste de significância.
+- **MAUP:** resultados dependem do recorte por bairros. O efeito de borda e o formato da área no
+  índice de Clark-Evans são tratados pelo teste de Monte Carlo; categorias com menos de ~6 pontos
+  dificilmente atingem significância.
 - **Atributos incompletos no OSM:** 72 dos 172 registros (42%) não têm nome e 132 (77%) não têm
   endereço. Eles são mantidos, porque a localização é válida, mas sinalizados. Para 128 dos sem
   endereço, a geocodificação reversa (Nominatim) indicou a rua mais próxima; esse endereço é
@@ -356,6 +386,9 @@ per capita e medir a acessibilidade pela rede viária.
 CÂMARA, G.; DAVIS, C.; MONTEIRO, A. M. V. (org.). *Introdução à ciência da geoinformação*.
 São José dos Campos: INPE, 2001. Disponível em: http://www.dpi.inpe.br/gilberto/livro/introd/.
 
+BESAG, J.; DIGGLE, P. J. Simple Monte Carlo tests for spatial pattern. *Journal of the Royal
+Statistical Society, Series C (Applied Statistics)*, v. 26, n. 3, p. 327–333, 1977.
+
 CLARK, P. J.; EVANS, F. C. Distance to nearest neighbor as a measure of spatial relationships
 in populations. *Ecology*, v. 35, n. 4, p. 445–453, 1954.
 
@@ -382,6 +415,10 @@ https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriai
 
 LONGLEY, P. A.; GOODCHILD, M. F.; MAGUIRE, D. J.; RHIND, D. W. *Geographic information
 science and systems*. 4. ed. Hoboken: Wiley, 2015.
+
+DONNELLY, K. P. Simulations to determine the variance and edge effect of total nearest
+neighbour distance. In: HODDER, I. (ed.). *Simulation studies in archaeology*. Cambridge:
+Cambridge University Press, 1978. p. 91–95.
 
 EOX IT SERVICES. *EOxCloudless: license & terms and conditions summary*. Disponível em:
 https://cloudless.eox.at/documentation/license. Acesso em: 17 nov. 2026.

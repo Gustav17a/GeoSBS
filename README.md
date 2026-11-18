@@ -22,7 +22,7 @@ marcadores, mapa de calor e mapas coropléticos por bairro.
 | Coleta | Malha municipal 2022 e Malha de Bairros do Censo 2022 (IBGE); pontos de interesse do OpenStreetMap (uma consulta Overpass, com cache) | `src/data_collection` |
 | Processamento | Esquema padronizado, classificação em 8 categorias, validação de coordenadas, recorte pelo limite municipal, flags de dados ausentes, remoção de duplicatas | `src/data_processing` |
 | Geoprocessamento | Reprojeção (SIRGAS 2000 → UTM 22S / WGS 84), áreas em km², junção espacial ponto-em-polígono, geocodificação com Geopy/Nominatim | `src/geospatial` |
-| Análise | Quantidade, densidade (por km²) e proximidade por bairro; índice do vizinho mais próximo (Clark-Evans) por categoria | `src/analytics` |
+| Análise | Quantidade, densidade (por km²) e proximidade por bairro; área urbana × fora dos bairros; índice do vizinho mais próximo (Clark-Evans) por categoria com teste de significância de Monte Carlo | `src/analytics` |
 | Visualização | Mapa MapLibre GL JS: mapa vetorial, satélite, híbrido, relevo e 3D; ícones SVG por categoria; clusters com anel de composição; mapa de calor; coropléticos; popups; painel e legenda dinâmica. Versão clássica em Folium/Leaflet como alternativa | `src/visualization` |
 
 Categorias: Saúde · Educação · Farmácias · Segurança pública · Transporte ·
@@ -62,7 +62,8 @@ O mapa precisa de internet para carregar o mapa-base, o satélite e o relevo.
 1. Crie uma conta em <https://location.arcgis.com> (plano gratuito: 2 milhões de tiles/mês).
 2. Gere uma chave de API com o privilégio de *basemaps* e restrinja os domínios permitidos
    (`https://gustav17a.github.io` e `http://localhost`).
-3. Copie `.env.example` para `.env` e preencha `GEOSBS_ESRI_KEY=...` (o `.env` não é versionado).
+3. Copie `.env.example` para `.env` e preencha `GEOSBS_ESRI_KEY=...` (o `.env` não é versionado)
+   e `GEOSBS_ESRI_KEY_EXPIRA=AAAA-MM-DD` (data de vencimento; o `main.py` avisa 30 dias antes).
 4. Rode `python main.py` de novo.
 
 ### Opções

@@ -14,6 +14,7 @@ import math
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import shapely
 
 from config import settings
 from src.data_collection.categories import load_categories
@@ -67,13 +68,27 @@ def proximity(pois: gpd.GeoDataFrame, bairros: gpd.GeoDataFrame) -> pd.DataFrame
     return result.reset_index(drop=True)
 
 
-def clark_evans(points: gpd.GeoDataFrame, area_km2: float) -> dict | None:
+SIGNIFICANCE = 0.05  # nível de significância do teste de Clark-Evans
+
+
+def clark_evans(points: gpd.GeoDataFrame, area_km2: float,
+                perimeter_km: float | None = None) -> dict | None:
     """Índice do vizinho mais próximo de Clark & Evans (1954).
 
     R = distância média observada ao vizinho mais próximo / distância esperada
     numa distribuição aleatória (0,5 / sqrt(n/A)).
     R < 1 indica agrupamento; R ≈ 1, aleatoriedade; R > 1, dispersão.
-    Não há correção de efeito de borda; interpretar como indicativo.
+
+    Significância: z = (observada - esperada) / SE, com p-valor bicaudal pela
+    distribuição normal. O padrão só é declarado agrupado/disperso se p < 0,05;
+    caso contrário, "não significativo" (não dá para descartar o acaso).
+
+    Efeito de borda: perto do limite falta vizinho do lado de fora, o que infla as
+    distâncias e, com poucos pontos, faz pontos aleatórios parecerem "dispersos".
+    Com `perimeter_km`, aplica a correção de Donnelly (1978):
+        esperada = 0,5·sqrt(A/n) + (0,0514 + 0,041/sqrt(n))·P/n
+        SE       = sqrt(0,0703·A/n² + 0,037·P·sqrt(A/n⁵))
+    Sem perímetro, usa as fórmulas originais (0,5/sqrt(n/A) e 0,26136/sqrt(n²/A)).
     """
     n = len(points)
     if n < 3 or area_km2 <= 0:
@@ -85,21 +100,82 @@ def clark_evans(points: gpd.GeoDataFrame, area_km2: float) -> dict | None:
     np.fill_diagonal(dist, np.inf)
     observed = dist.min(axis=1).mean()
     area_m2 = area_km2 * 1_000_000
-    expected = 0.5 / math.sqrt(n / area_m2)
+    if perimeter_km:
+        per_m = perimeter_km * 1000
+        expected = 0.5 * math.sqrt(area_m2 / n) + (0.0514 + 0.041 / math.sqrt(n)) * per_m / n
+        se = math.sqrt(0.0703 * area_m2 / n ** 2 + 0.037 * per_m * math.sqrt(area_m2 / n ** 5))
+    else:
+        expected = 0.5 / math.sqrt(n / area_m2)
+        se = 0.26136 / math.sqrt(n * n / area_m2)
     r = observed / expected
-    pattern = "agrupado" if r < 0.9 else ("disperso" if r > 1.1 else "próximo do aleatório")
+    z = (observed - expected) / se
+    p_value = math.erfc(abs(z) / math.sqrt(2))
+    if p_value < SIGNIFICANCE:
+        pattern = "agrupado" if r < 1 else "disperso"
+    else:
+        pattern = "não significativo"
     return {"n": n, "dist_media_obs_m": round(observed, 1),
-            "dist_media_esperada_m": round(expected, 1), "R": round(r, 3), "padrao": pattern}
+            "dist_media_esperada_m": round(expected, 1), "R": round(r, 3),
+            "z": round(z, 2), "p_valor": round(p_value, 4), "padrao": pattern}
 
 
-def spatial_patterns(pois: gpd.GeoDataFrame, bairros: gpd.GeoDataFrame) -> pd.DataFrame:
-    """Clark-Evans por categoria, considerando só pontos dentro da área dos bairros."""
+def _mean_nn(coords: np.ndarray) -> float:
+    diff = coords[:, None, :] - coords[None, :, :]
+    dist = np.sqrt((diff ** 2).sum(axis=2))
+    np.fill_diagonal(dist, np.inf)
+    return float(dist.min(axis=1).mean())
+
+
+def _random_points(region, n: int, rng: np.random.Generator) -> np.ndarray:
+    """n pontos uniformes dentro de `region` (amostragem por rejeição no retângulo envolvente)."""
+    minx, miny, maxx, maxy = region.bounds
+    out = np.empty((0, 2))
+    while len(out) < n:
+        cand = np.column_stack([rng.uniform(minx, maxx, 4 * n), rng.uniform(miny, maxy, 4 * n)])
+        out = np.vstack([out, cand[shapely.contains_xy(region, cand[:, 0], cand[:, 1])]])
+    return out[:n]
+
+
+def clark_evans_monte_carlo(points: gpd.GeoDataFrame, region, n_sim: int = 999,
+                            seed: int = 42) -> dict | None:
+    """Clark-Evans com teste de Monte Carlo (Besag & Diggle, 1977).
+
+    A distância esperada é a média de `n_sim` sorteios de n pontos aleatórios
+    DENTRO da própria área de estudo (`region`, em metros), o que incorpora o
+    efeito de borda e o formato irregular dos bairros, em que as fórmulas
+    analíticas (inclusive a correção de Donnelly, feita para áreas compactas)
+    falham. p-valor bicaudal pela posição do valor observado entre os sorteios.
+    Semente fixa: o resultado é reprodutível.
+    """
+    n = len(points)
+    if n < 3:
+        return None
+    metric = points.to_crs(settings.CRS_METRIC)
+    observed = _mean_nn(np.column_stack([metric.geometry.x, metric.geometry.y]))
+    rng = np.random.default_rng(seed)
+    sims = np.array([_mean_nn(_random_points(region, n, rng)) for _ in range(n_sim)])
+    expected = float(sims.mean())
+    low = (1 + (sims <= observed).sum()) / (n_sim + 1)
+    high = (1 + (sims >= observed).sum()) / (n_sim + 1)
+    p_value = min(1.0, 2 * min(low, high))
+    r = observed / expected
+    if p_value < SIGNIFICANCE:
+        pattern = "agrupado" if r < 1 else "disperso"
+    else:
+        pattern = "não significativo"
+    return {"n": n, "dist_media_obs_m": round(observed, 1), "dist_media_esperada_m": round(expected, 1),
+            "R": round(r, 3), "p_valor": round(p_value, 3), "padrao": pattern}
+
+
+def spatial_patterns(pois: gpd.GeoDataFrame, bairros: gpd.GeoDataFrame,
+                     n_sim: int = 999) -> pd.DataFrame:
+    """Clark-Evans por categoria (Monte Carlo), só com pontos dentro da área dos bairros."""
     est = establishments(pois)
     inside = est[est["bairro"] != FORA_DE_BAIRRO]
-    area = add_area_km2(bairros)["area_km2"].sum()
+    study = bairros.to_crs(settings.CRS_METRIC).geometry.union_all()   # área de estudo: bairros
     rows = []
     for cat in load_categories():
-        res = clark_evans(inside[inside["categoria"] == cat.id], area)
+        res = clark_evans_monte_carlo(inside[inside["categoria"] == cat.id], study, n_sim=n_sim)
         if res:
             rows.append({"categoria": cat.label, **res})
     return pd.DataFrame(rows)
@@ -133,6 +209,30 @@ def summary(pois: gpd.GeoDataFrame, table: gpd.GeoDataFrame) -> dict:
         "bairro_menor_densidade": _pick(low_density, "densidade_km2"),
         "data_coleta": data_coleta,
     }
+
+
+def regions(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame, table: gpd.GeoDataFrame) -> dict:
+    """Quantidade e densidade em duas regiões: área dos bairros × resto do município.
+
+    Os bairros do IBGE cobrem só a área urbana; o resto do município (área rural e
+    lacunas da malha) não tem bairro oficial. Tratar esse resto como uma região
+    própria evita que os registros dali fiquem "soltos" nas análises. A região NÃO
+    entra no ranking de bairros, porque não é um bairro.
+    """
+    est = establishments(pois)
+    labels = {c.id: c.label for c in load_categories()}
+    mun_km2 = float(municipio.to_crs(settings.CRS_METRIC).area.sum()) / 1e6
+    urb_km2 = float(table["area_km2"].sum())
+    fora = est["bairro"] == FORA_DE_BAIRRO
+    rows = []
+    for nome, area, n in (("Área urbana (bairros do IBGE)", urb_km2, int((~fora).sum())),
+                          ("Fora dos bairros (área rural e lacunas)", mun_km2 - urb_km2, int(fora.sum()))):
+        rows.append({"regiao": nome, "area_km2": round(area, 1), "total": n,
+                     "densidade_km2": round(n / area, 2) if area else 0.0,
+                     "pct_area": round(100 * area / mun_km2, 1),
+                     "pct_registros": round(100 * n / len(est), 1) if len(est) else 0.0})
+    fora_cat = est[fora]["categoria"].map(labels).value_counts()
+    return {"tabela": rows, "fora_por_categoria": {k: int(v) for k, v in fora_cat.items()}}
 
 
 def _pick(row: pd.Series | None, field: str) -> dict | None:

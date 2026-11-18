@@ -39,7 +39,32 @@
       "bairro": "Rio Vermelho Povoado",
       "valor": 0.0
     },
-    "data_coleta": "2026-11-17T17:41:17"
+    "data_coleta": "2026-11-17T17:41:17",
+    "regioes": {
+      "tabela": [
+        {
+          "regiao": "Área urbana (bairros do IBGE)",
+          "area_km2": 82.1,
+          "total": 115,
+          "densidade_km2": 1.4,
+          "pct_area": 16.6,
+          "pct_registros": 91.3
+        },
+        {
+          "regiao": "Fora dos bairros (área rural e lacunas)",
+          "area_km2": 412.8,
+          "total": 11,
+          "densidade_km2": 0.03,
+          "pct_area": 83.4,
+          "pct_registros": 8.7
+        }
+      ],
+      "fora_por_categoria": {
+        "Outros pontos de interesse": 9,
+        "Educação": 1,
+        "Serviços públicos": 1
+      }
+    }
   },
   "qualidade": {
     "elementos_osm": 235,
