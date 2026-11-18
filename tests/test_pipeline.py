@@ -150,7 +150,34 @@ def test_clark_evans_detects_clustering():
     ys = -26.25 + rng.normal(0, 0.0003, 30)
     pts = gpd.GeoDataFrame(geometry=gpd.points_from_xy(xs, ys), crs="EPSG:4326")
     res = indicators.clark_evans(pts, area_km2=4.0)
-    assert res["R"] < 1 and res["padrao"] == "agrupado"
+    assert res["R"] < 1 and res["padrao"] == "agrupado" and res["p_valor"] < 0.05
+
+
+def test_clark_evans_regular_grid_is_dispersed():
+    """Uma grade regular é o caso clássico de dispersão (R > 1, significativo)."""
+    import numpy as np
+    g = np.linspace(-49.395, -49.385, 6)
+    xs, ys = np.meshgrid(g, np.linspace(-26.255, -26.245, 6))
+    pts = gpd.GeoDataFrame(geometry=gpd.points_from_xy(xs.ravel(), ys.ravel()), crs="EPSG:4326")
+    res = indicators.clark_evans(pts, area_km2=1.0)
+    assert res["R"] > 1 and res["padrao"] == "disperso"
+
+
+def test_clark_evans_edge_correction_controls_false_positives():
+    """Pontos aleatórios: com a correção de Donnelly, ~5% de falsos positivos e R médio ~1."""
+    import numpy as np
+    from shapely.geometry import box
+    area = gpd.GeoSeries([box(-49.40, -26.26, -49.38, -26.24)], crs="EPSG:4326").to_crs("EPSG:31982").iloc[0]
+    a_km2, p_km = area.area / 1e6, area.length / 1000
+    sig, rs = 0, []
+    for seed in range(200):
+        rng = np.random.default_rng(seed)
+        pts = gpd.GeoDataFrame(geometry=gpd.points_from_xy(rng.uniform(-49.40, -49.38, 8),
+                                                           rng.uniform(-26.26, -26.24, 8)), crs="EPSG:4326")
+        res = indicators.clark_evans(pts, a_km2, perimeter_km=p_km)
+        sig += res["p_valor"] < 0.05
+        rs.append(res["R"])
+    assert sig / 200 < 0.10 and abs(np.mean(rs) - 1) < 0.05
 
 
 def test_points_outside_bairros(municipio, bairros):
@@ -276,3 +303,46 @@ def test_reverse_geocode_offline_uses_only_cache(tmp_path):
     out = fill_missing_addresses(df, online=False, geocoder=g)
     assert out.at[0, "endereco"] == "Rua A, 10 (aprox., geocodificação reversa)"
     assert pd.isna(out.at[1, "endereco"]) and out.at[2, "endereco"] == "Rua B, 5"
+
+
+def test_clark_evans_monte_carlo_on_irregular_area():
+    """Monte Carlo: pontos aleatórios numa área em 'L' quase nunca dão padrão; agrupados, sim."""
+    import numpy as np
+    from shapely.geometry import box
+    region = box(0, 0, 3000, 1000).union(box(0, 0, 1000, 3000))        # metros, formato em L
+    to_gdf = lambda xy: gpd.GeoDataFrame(geometry=gpd.points_from_xy(xy[:, 0], xy[:, 1]),
+                                         crs="EPSG:31982").to_crs("EPSG:4326")
+    sig = 0
+    for seed in range(40):
+        pts = indicators._random_points(region, 8, np.random.default_rng(100 + seed))
+        sig += indicators.clark_evans_monte_carlo(to_gdf(pts), region, n_sim=199, seed=seed)["p_valor"] < 0.05
+    assert sig <= 6                                                      # ~5% esperado
+    clustered = np.column_stack([np.random.default_rng(0).normal(500, 40, 12),
+                                 np.random.default_rng(1).normal(500, 40, 12)])
+    res = indicators.clark_evans_monte_carlo(to_gdf(clustered), region, n_sim=199)
+    assert res["padrao"] == "agrupado" and res["R"] < 0.6
+
+
+def test_regions_split_urban_and_outside(overpass_file, municipio, bairros):
+    """Área urbana + fora dos bairros = município inteiro, e todos os estabelecimentos."""
+    pois, *_ = _processed(overpass_file, municipio, bairros)
+    table = indicators.by_bairro(pois, bairros)
+    reg = indicators.regions(pois, municipio, table)["tabela"]
+    est = indicators.establishments(pois)
+    mun_km2 = municipio.to_crs("EPSG:31982").area.sum() / 1e6
+    assert sum(r["total"] for r in reg) == len(est)
+    assert abs(sum(r["area_km2"] for r in reg) - mun_km2) < 0.2
+    assert reg[1]["total"] == int((est["bairro"] == FORA_DE_BAIRRO).sum())
+
+
+def test_esri_key_expiry_warning(monkeypatch):
+    from datetime import date
+    import main
+    from config import settings
+    monkeypatch.setattr(settings, "ESRI_API_KEY", "CHAVE")
+    monkeypatch.setattr(settings, "ESRI_KEY_EXPIRES", "2027-02-15")
+    assert main.check_esri_key(date(2026, 11, 18)) is None                       # longe do vencimento
+    assert "vence em 15 dias" in main.check_esri_key(date(2027, 1, 31))
+    assert "VENCEU" in main.check_esri_key(date(2027, 2, 16))
+    monkeypatch.setattr(settings, "ESRI_API_KEY", "")
+    assert "Sem chave" in main.check_esri_key(date(2026, 11, 18))

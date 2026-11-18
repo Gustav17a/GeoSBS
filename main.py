@@ -12,6 +12,7 @@ import logging
 import shutil
 import sys
 import webbrowser
+from datetime import date
 
 import pandas as pd
 
@@ -28,6 +29,25 @@ from src.visualization.map_builder import build_map
 from src.visualization.maplibre_builder import build_web_map
 
 log = logging.getLogger("geosbs")
+
+
+def check_esri_key(today: date | None = None) -> str | None:
+    """Aviso quando a chave da Esri estiver perto de vencer (ou vencida)."""
+    if not settings.ESRI_API_KEY:
+        return "Sem chave da Esri: o satélite do mapa será o Sentinel-2 (10 m). Ver README."
+    if not settings.ESRI_KEY_EXPIRES:
+        return None
+    try:
+        expires = date.fromisoformat(settings.ESRI_KEY_EXPIRES)
+    except ValueError:
+        return f"GEOSBS_ESRI_KEY_EXPIRA inválida ({settings.ESRI_KEY_EXPIRES}); use AAAA-MM-DD."
+    days = (expires - (today or date.today())).days
+    if days < 0:
+        return (f"A chave da Esri VENCEU em {expires:%d/%m/%Y}: o mapa usa o Sentinel-2. "
+                "Gere outra no painel da Esri, atualize o .env e rode de novo.")
+    if days <= settings.ESRI_KEY_WARN_DAYS:
+        return f"A chave da Esri vence em {days} dias ({expires:%d/%m/%Y}). Renove no painel da Esri."
+    return None
 
 
 def run(refresh_osm: bool, refresh_ibge: bool, open_browser: bool,
@@ -74,12 +94,15 @@ def run(refresh_osm: bool, refresh_ibge: bool, open_browser: bool,
     log.info("5/6 Calculando indicadores e análises")
     table = indicators.by_bairro(pois, bairros)
     summary = indicators.summary(pois, table)
+    summary["regioes"] = indicators.regions(pois, municipio, table)
     proximity = indicators.proximity(pois, bairros)
     patterns = indicators.spatial_patterns(pois, bairros)
     for path in write_reports(summary, table, proximity, patterns, quality, duplicates, rejected):
         log.info("    Relatório: %s", path.relative_to(settings.ROOT_DIR))
 
     log.info("6/6 Gerando mapas interativos")
+    if (aviso := check_esri_key()):
+        log.warning(aviso)
     out = build_web_map(pois, municipio, table, summary, settings.MAP_OUTPUT_FILE)
     classic = build_map(pois, municipio, table, summary, settings.MAP_CLASSIC_FILE)
     log.info("Mapa principal (MapLibre): %s", out)

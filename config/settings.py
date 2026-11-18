@@ -97,6 +97,11 @@ def _env_file_value(name: str) -> str:
 
 
 ESRI_API_KEY = os.environ.get("GEOSBS_ESRI_KEY", "").strip() or _env_file_value("GEOSBS_ESRI_KEY")
+# Data de vencimento da chave (AAAA-MM-DD), informada no painel da Esri ao criá-la.
+# Não é secreta; serve para o aviso de vencimento em main.py.
+ESRI_KEY_EXPIRES = (os.environ.get("GEOSBS_ESRI_KEY_EXPIRA", "").strip()
+                    or _env_file_value("GEOSBS_ESRI_KEY_EXPIRA"))
+ESRI_KEY_WARN_DAYS = 30
 
 # Margem (fração do tamanho do município) que o usuário pode navegar além do limite.
 MAP_NAV_MARGIN = 0.35

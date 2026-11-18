@@ -193,6 +193,13 @@
       <div class="kpi wide"><small>Sem registros na base ({{ s.bairros_sem_registros|length }} bairros)</small><b class="sm" style="font-weight:500">{{ s.bairros_sem_registros|join(", ") }}</b></div>
       {% endif %}
     </div>
+    {% if s.regioes %}
+    <h3>Área urbana × fora dos bairros</h3>
+    <table class="rank">
+      <tr><th>Região</th><th>Área</th><th>Registros</th><th>Por km²</th></tr>
+      {% for r in s.regioes.tabela %}<tr><td>{{ r.regiao.split(" (")[0] }}</td><td>{{ "%.1f"|format(r.area_km2)|replace(".", ",") }} km²</td><td class="n">{{ r.total }}</td><td>{{ "%.2f"|format(r.densidade_km2)|replace(".", ",") }}</td></tr>{% endfor %}
+    </table>
+    {% endif %}
     <h3>Bairros com mais registros</h3>
     <table class="rank">
       <tr><th>Bairro</th><th>Quantidade</th><th>Por km²</th></tr>
