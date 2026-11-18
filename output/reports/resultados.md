@@ -20,7 +20,7 @@ Coleta OSM: 2026-11-17T17:41:17. Todos os números abaixo foram calculados pelo 
 ## Indicadores gerais
 - Estabelecimentos e equipamentos: **126** (+ 46 paradas de ônibus exibidas apenas no mapa)
 - Categoria com mais registros: **Lazer e espaços públicos**
-- Bairros analisados: 20 (16 com ao menos um registro)
+- Bairros analisados: 20 (16 com ao menos um registro no OSM; 18 contando os postos públicos de saúde do CNES: Alpino, Rio Vermelho Povoado)
 - Registros fora dos bairros oficiais: 11
 - Maior quantidade: **Centro**
 - Menor quantidade: **Industrial Sudoeste, Dona Francisca, Alpino, Rio Vermelho Povoado**

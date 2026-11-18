@@ -570,3 +570,21 @@ def test_cnes_completeness_and_outputs(tmp_path, overpass_file, municipio, bairr
 def test_web_map_without_cnes_has_no_layer(tmp_path, overpass_file, municipio, bairros):
     _, html_web, data = _web_map(tmp_path, overpass_file, municipio, bairros)
     assert data["cnes"]["features"] == [] and 'id="optCnes"' not in html_web
+
+
+def test_panel_shows_both_bairro_counts(tmp_path, overpass_file, municipio, bairros):
+    """O painel deixa claro que 16/20 conta só o OSM e mostra o total com o CNES."""
+    from src.analytics.report import write_reports
+    from src.visualization.maplibre_builder import build_web_map
+    pois, rejected, quality, dups = _processed(overpass_file, municipio, bairros)
+    table = indicators.by_bairro(pois, bairros)
+    s = indicators.summary(pois, table)
+    s["cnes"] = {"unidades": 1, "atencao_basica": 1, "atencao_basica_no_osm": 0, "unidades_no_osm": 0,
+                 "por_grupo": {}, "bairros_sem_osm_com_cnes": ["Vazio"], "por_bairro": [],
+                 "regra": {"distancia_nome_m": 1000, "distancia_sem_nome_m": 250}}
+    html_web = build_web_map(pois, municipio, table, s, tmp_path / "w.html").read_text(encoding="utf-8")
+    assert "bairros com registros no OSM" in html_web
+    assert "3/3 contando os postos de saúde do CNES" in html_web and "(posto no CNES)" in html_web
+    write_reports(s, table, pd.DataFrame(), pd.DataFrame(), {"registros_finais": len(pois)}, dups, rejected,
+                  out_dir=tmp_path)
+    assert "3 contando os postos públicos de saúde do CNES: Vazio" in (tmp_path / "resultados.md").read_text(encoding="utf-8")

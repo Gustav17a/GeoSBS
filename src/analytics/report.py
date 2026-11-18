@@ -160,7 +160,11 @@ def write_reports(summary: dict, table: gpd.GeoDataFrame, proximity: pd.DataFram
         f"(+ {summary['paradas_onibus']} paradas de ônibus exibidas apenas no mapa)",
         f"- Categoria com mais registros: **{summary['categoria_mais_registros']}**",
         f"- Bairros analisados: {summary['bairros_analisados']} "
-        f"({summary['bairros_com_registros']} com ao menos um registro)",
+        f"({summary['bairros_com_registros']} com ao menos um registro no OSM"
+        + (f"; {summary['bairros_com_registros'] + len(summary['cnes']['bairros_sem_osm_com_cnes'])} "
+           f"contando os postos públicos de saúde do CNES: "
+           f"{', '.join(summary['cnes']['bairros_sem_osm_com_cnes'])})"
+           if (summary.get('cnes') or {}).get('bairros_sem_osm_com_cnes') else ")"),
         f"- Registros fora dos bairros oficiais: {summary['fora_dos_bairros']}",
         *_extremes_md(summary),
         "",
