@@ -1,0 +1,30 @@
+# Versões exatas do ambiente em que o GeoSBS foi testado (Python 3.13.5, 2026-11-18).
+# Para reproduzir exatamente: pip install -r requirements-lock.txt
+# Para desenvolver com versões compatíveis mais novas: pip install -r requirements-dev.txt
+branca==0.8.2
+certifi==2026.10.23
+charset-normalizer==3.5.2
+colorama==0.4.6 ; sys_platform == "win32"
+folium==1.0.0
+geographiclib==2.1
+geopandas==1.2.0
+geopy==2.5.0
+idna==3.20
+iniconfig==2.3.1
+Jinja2==3.1.6
+MarkupSafe==3.0.4
+numpy==2.5.5
+packaging==26.3
+pandas==3.1.1
+pluggy==1.7.0
+Pygments==2.21.0
+pyogrio==0.13.0
+pyproj==3.8.0
+pytest==9.2.0
+python-dateutil==4.0.0
+requests==2.34.2
+shapely==2.2.0
+tzdata==2026.6
+urllib3==2.8.0
+websocket-client==1.9.2
+xyzservices==2026.9.1

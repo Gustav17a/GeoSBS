@@ -29,6 +29,8 @@ HEAT_LAYER = "Mapa de calor (estabelecimentos)"
 CHORO_COUNT = "Coroplético: quantidade por bairro"
 CHORO_DENSITY = "Coroplético: densidade (por km²)"
 # Paleta sequencial (azul-esverdeado claro → escuro), legível para daltônicos.
+# Ícone da aba (SVG embutido, sem requisição extra); o mesmo do mapa principal.
+FAVICON = '<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%23111827%22/%3E%3Cpath%20d%3D%22M32%2012c-8.3%200-15%206.5-15%2014.6C17%2037.5%2032%2052%2032%2052s15-14.5%2015-25.4C47%2018.5%2040.3%2012%2032%2012z%22%20fill%3D%22%2322d3ee%22/%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2226.5%22%20r%3D%225.5%22%20fill%3D%22%23111827%22/%3E%3C/svg%3E">'
 SEQ_COLORS = ["#edf8fb", "#b2e2e2", "#66c2a4", "#2ca25f", "#006d2c"]
 
 
@@ -153,7 +155,9 @@ def build_map(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame,
     max_count = max(est["categoria"].value_counts().max() if len(est) else 1, 1)
     for cat in cats:
         subset = pois[pois["categoria"] == cat.id]
-        layer_name = f"{cat.label} ({len(subset)})"
+        n_est_cat = int((est["categoria"] == cat.id).sum())
+        n_extra = len(subset) - n_est_cat          # paradas de ônibus (só em Transporte)
+        layer_name = f"{cat.label} ({n_est_cat} + {n_extra} paradas)" if n_extra else f"{cat.label} ({n_est_cat})"
         group = FeatureGroupSubGroup(cluster, name=layer_name).add_to(m)
         for _, row in subset.iterrows():
             folium.Marker(
@@ -188,7 +192,7 @@ def build_map(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame,
     )
     m.get_root().html.add_child(folium.Element(panel))
     m.get_root().header.add_child(folium.Element(
-        "<title>GeoSBS · Inteligência Geográfica de São Bento do Sul</title>"))
+        "<title>GeoSBS · Inteligência Geográfica de São Bento do Sul</title>" + FAVICON))
 
     output.parent.mkdir(parents=True, exist_ok=True)
     m.save(str(output))

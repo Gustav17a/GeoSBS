@@ -203,10 +203,10 @@ def summary(pois: gpd.GeoDataFrame, table: gpd.GeoDataFrame) -> dict:
         "bairros_com_registros": int(len(with_data)),
         "bairros_sem_registros": table.loc[table["total"] == 0, "NM_BAIRRO"].tolist(),
         "fora_dos_bairros": int((est["bairro"] == FORA_DE_BAIRRO).sum()),
-        "bairro_maior_quantidade": _pick(top_count, "total"),
-        "bairro_menor_quantidade": _pick(low_count, "total"),
-        "bairro_maior_densidade": _pick(top_density, "densidade_km2"),
-        "bairro_menor_densidade": _pick(low_density, "densidade_km2"),
+        "bairro_maior_quantidade": _pick(top_count, "total", table),
+        "bairro_menor_quantidade": _pick(low_count, "total", table),
+        "bairro_maior_densidade": _pick(top_density, "densidade_km2", table),
+        "bairro_menor_densidade": _pick(low_density, "densidade_km2", table),
         "data_coleta": data_coleta,
     }
 
@@ -235,7 +235,14 @@ def regions(pois: gpd.GeoDataFrame, municipio: gpd.GeoDataFrame, table: gpd.GeoD
     return {"tabela": rows, "fora_por_categoria": {k: int(v) for k, v in fora_cat.items()}}
 
 
-def _pick(row: pd.Series | None, field: str) -> dict | None:
+def _pick(row: pd.Series | None, field: str, table: gpd.GeoDataFrame | None = None) -> dict | None:
+    """Bairro com o valor extremo; `empatados` lista todos os bairros com o mesmo valor."""
     if row is None:
         return None
-    return {"bairro": row["NM_BAIRRO"], "valor": float(row[field]) if "dens" in field else int(row[field])}
+    value = float(row[field]) if "dens" in field else int(row[field])
+    out = {"bairro": row["NM_BAIRRO"], "valor": value}
+    if table is not None:
+        tied = table.loc[np.isclose(table[field].astype(float), float(row[field])), "NM_BAIRRO"].tolist()
+        if len(tied) > 1:
+            out["empatados"] = tied
+    return out

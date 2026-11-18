@@ -1,0 +1,18 @@
+# Fins de linha: LF no repositório; o Git converte para o padrão do sistema ao baixar.
+* text=auto eol=lf
+
+# Scripts do Windows precisam de CRLF.
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+
+# Binários: nunca converter nem tentar mostrar diferença de texto.
+*.png binary
+*.jpg binary
+*.zip binary
+*.pbf binary
+
+# Arquivos gerados pelo pipeline: não entram nas estatísticas de linguagem do GitHub.
+output/** linguist-generated
+docs/index.html linguist-generated
+docs/geosbs_classico.html linguist-generated
+data/** linguist-generated

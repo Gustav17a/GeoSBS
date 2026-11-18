@@ -1,0 +1,36 @@
+name: Testes
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Menor privilégio: o workflow só lê o repositório.
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Nenhum segredo ou ambiente local versionado
+        run: |
+          if git ls-files | grep -E '(^|/)\.env$|(^|/)\.venv/|(^|/)venv/'; then
+            echo "::error::Arquivo de ambiente ou segredo versionado. Remova-o e confira o .gitignore."
+            exit 1
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-lock.txt
+
+      - name: Instalar dependências (versões testadas)
+        run: pip install -r requirements-lock.txt
+
+      - name: Testes automatizados
+        run: python -m pytest -q

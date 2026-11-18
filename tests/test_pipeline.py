@@ -346,3 +346,25 @@ def test_esri_key_expiry_warning(monkeypatch):
     assert "VENCEU" in main.check_esri_key(date(2027, 2, 16))
     monkeypatch.setattr(settings, "ESRI_API_KEY", "")
     assert "Sem chave" in main.check_esri_key(date(2026, 11, 18))
+
+
+def test_latest_raw_file_uses_data_date_not_name(tmp_path, monkeypatch):
+    """Uma exportação manual ANTIGA não deve vencer uma coleta automática mais nova."""
+    import json
+    from config import settings
+    from src.data_collection import osm
+    monkeypatch.setattr(settings, "RAW_DIR", tmp_path)
+    w = lambda name, ts: (tmp_path / name).write_text(json.dumps({"osm3s": {"timestamp_osm_base": ts}, "elements": []}))
+    w("osm_overpass_20261117_174117.json", "2026-11-17T20:40:18Z")
+    w("osm_overpass_manual.json", "2026-10-01T00:00:00Z")
+    assert osm.latest_raw_file().name == "osm_overpass_20261117_174117.json"
+    w("osm_overpass_manual.json", "2026-12-01T00:00:00Z")                 # manual mais nova vence
+    assert osm.latest_raw_file().name == "osm_overpass_manual.json"
+
+
+def test_summary_lists_ties(overpass_file, municipio, bairros):
+    pois, *_ = _processed(overpass_file, municipio, bairros)
+    table = indicators.by_bairro(pois, bairros)
+    low = indicators.summary(pois, table)["bairro_menor_quantidade"]
+    zeros = table.loc[table["total"] == low["valor"], "NM_BAIRRO"].tolist()
+    assert len(zeros) < 2 or sorted(low["empatados"]) == sorted(zeros)
